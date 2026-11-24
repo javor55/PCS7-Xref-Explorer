@@ -1,0 +1,14 @@
+# Reálná projektová data NIKDY necommitovat
+*.csv
+*.cfg
+*.txt
+*.xlsx
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.bmp
+exports/
+export/
+data/
+PCS7 export/

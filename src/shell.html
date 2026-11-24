@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PCS7 Xref Explorer</title>
+<style>/*CSS*/</style></head>
+<body><div id="app">
+<header>
+  <h1>PCS7 Xref Explorer <span>· Chart Reference Data</span></h1>
+  <button id="back" class="navbtn" title="Zpět (Alt+←)" disabled>←</button><button id="fwd" class="navbtn" title="Vpřed (Alt+→)" disabled>→</button>
+  <input type="search" id="gsearch" placeholder="Hledat blok, typ, chart, adresu…  (Enter, zkratka /)">
+  <div id="fileChips"></div>
+  <span class="flex1"></span>
+  <button id="theme" title="Světlý / tmavý režim"><svg width="14" height="14" viewBox="0 0 16 16" style="vertical-align:-2px"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button>
+  <input type="file" id="fileInput" multiple accept=".csv,.txt,.cfg" hidden>
+</header>
+<div id="body">
+  <aside><div class="stabs" id="stabs"></div>
+    <div class="sfilter"><input type="search" id="sfilter" placeholder="Filtr (hierarchie, název, typ…)"></div>
+    <div id="side"></div></aside>
+  <div id="split"></div>
+  <main><div class="mtabs" id="mtabs"></div><div id="view"></div></main>
+</div></div>
+<div id="dragmask">Pusťte CSV exporty z PCS7</div><div id="toast"></div>
+<script>/*JS*/</script>
+</body></html>

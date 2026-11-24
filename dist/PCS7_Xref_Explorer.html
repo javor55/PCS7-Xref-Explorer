@@ -1,0 +1,2347 @@
+<!doctype html>
+<html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PCS7 Xref Explorer</title>
+<style>:root{
+  --bg:#f4f5f7; --panel:#ffffff; --panel2:#f9fafb; --line:#dfe3e8; --line2:#eef0f3;
+  --text:#1d2330; --muted:#677184; --accent:#0b62c4; --accent-bg:#e7f0fb;
+  --ok:#1a7f37; --ok-bg:#e6f4ea; --warn:#9a6700; --warn-bg:#fff4d6; --err:#c62828; --err-bg:#fdecec; --info-bg:#eef1f5;
+  --edge:#8a94a6; --edge-hi:#0b62c4; --edge-dead:#c77700;
+  --c-tech:#2f6db5; --c-drv:#2e8540; --c-logic:#7b8494; --c-sfc:#8a3fb8; --c-chart:#b06d00; --c-addr:#0f8a8a; --c-ext:#a0a7b4;
+  --node:#ffffff; --node-head:#f1f4f8;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15181d; --panel:#1d2128; --panel2:#22272f; --line:#323843; --line2:#2a2f38;
+    --text:#e3e7ee; --muted:#98a2b3; --accent:#5aa2f0; --accent-bg:#1f3350;
+    --ok:#5cc97a; --ok-bg:#1d3324; --warn:#e3b341; --warn-bg:#3a3018; --err:#ff7b72; --err-bg:#3d1f1f; --info-bg:#262b33;
+    --edge:#6c7688; --edge-hi:#5aa2f0; --edge-dead:#e0a040;
+    --c-tech:#5a9be6; --c-drv:#57b56a; --c-logic:#8d96a6; --c-sfc:#b67be0; --c-chart:#e0a040; --c-addr:#3cc0c0; --c-ext:#5d6573;
+    --node:#232830; --node-head:#2b313b;
+  }
+}
+:root[data-theme="dark"]{
+    --bg:#15181d; --panel:#1d2128; --panel2:#22272f; --line:#323843; --line2:#2a2f38;
+    --text:#e3e7ee; --muted:#98a2b3; --accent:#5aa2f0; --accent-bg:#1f3350;
+    --ok:#5cc97a; --ok-bg:#1d3324; --warn:#e3b341; --warn-bg:#3a3018; --err:#ff7b72; --err-bg:#3d1f1f; --info-bg:#262b33;
+    --edge:#6c7688; --edge-hi:#5aa2f0; --edge-dead:#e0a040;
+    --c-tech:#5a9be6; --c-drv:#57b56a; --c-logic:#8d96a6; --c-sfc:#b67be0; --c-chart:#e0a040; --c-addr:#3cc0c0; --c-ext:#5d6573;
+    --node:#232830; --node-head:#2b313b;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:13px/1.4 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;overflow:hidden}
+a.lnk{color:var(--accent);cursor:pointer;text-decoration:none}
+a.lnk:hover{text-decoration:underline}
+button,select,input{font:inherit;color:inherit}
+button{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
+input[type=text],input[type=search],select{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 8px;min-width:0}
+input:focus,select:focus{outline:2px solid var(--accent-bg);border-color:var(--accent)}
+.mono{font-family:var(--mono);font-size:12px}
+.muted{color:var(--muted)}
+.ico{width:16px;height:16px;image-rendering:pixelated;vertical-align:-3px;flex:none}
+.ico.big{width:32px;height:32px}
+
+#app{display:grid;grid-template-rows:48px 1fr;height:100vh}
+header{display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:15px;margin:0 8px 0 0;white-space:nowrap;font-weight:600}
+header h1 span{color:var(--muted);font-weight:400}
+#fileChips{display:flex;gap:4px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:var(--panel2);font-size:11px;cursor:pointer}
+.chip.off{opacity:.38;filter:grayscale(1)}
+#gsearch{flex:1;max-width:520px}
+.navbtn{padding:3px 8px}
+#body{display:grid;grid-template-columns:var(--sbw,330px) 5px 1fr;min-height:0}
+#split{cursor:col-resize;background:var(--line2)}
+#split:hover{background:var(--accent)}
+aside{background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.stabs,.mtabs{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--line);background:var(--panel)}
+.stabs button,.mtabs button{border:none;border-bottom:2px solid transparent;border-radius:0;background:none;padding:6px 10px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+.stabs button.on,.mtabs button.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+.sfilter{display:flex;gap:6px;padding:8px}
+.sfilter input{flex:1}
+#side{flex:1;overflow:auto;padding:0 4px 20px}
+.tn{display:flex;align-items:center;gap:4px;padding:2px 4px;border-radius:4px;cursor:pointer;white-space:nowrap}
+.tn:hover{background:var(--panel2)}
+.tn.sel{background:var(--accent-bg)}
+.tn .tw{width:14px;text-align:center;color:var(--muted);flex:none;font-size:10px}
+.tn .cnt{margin-left:auto;color:var(--muted);font-size:11px;padding-left:8px}
+.tn .ty{color:var(--muted);font-size:11px}
+.tc{padding-left:14px}
+.gico{width:14px;height:14px;flex:none;display:inline-block;vertical-align:-2px}
+main{display:flex;flex-direction:column;min-width:0;min-height:0}
+#view{flex:1;overflow:auto;position:relative;min-height:0}
+.pad{padding:14px 18px}
+.crumb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;color:var(--muted);font-size:12px;margin-bottom:6px}
+.crumb a{color:var(--accent);cursor:pointer}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:12px}
+.card h2{margin:0 0 4px;font-size:18px}
+.card h3{margin:0 0 8px;font-size:14px}
+.pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;background:var(--info-bg);border:1px solid var(--line);white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.pill.warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.pill.err{background:var(--err-bg);color:var(--err);border-color:transparent}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;font-size:12px}
+.kv b{color:var(--muted);font-weight:500}
+table.t{border-collapse:collapse;width:100%;font-size:12px}
+table.t th{position:sticky;top:0;background:var(--panel2);text-align:left;font-weight:600;border-bottom:1px solid var(--line);padding:5px 8px;white-space:nowrap;z-index:1}
+table.t td{border-bottom:1px solid var(--line2);padding:4px 8px;vertical-align:top}
+table.t tr:hover td{background:var(--panel2)}
+table.t td.nw{white-space:nowrap}
+.tablewrap{max-height:none;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+.stat{display:inline-flex;flex-direction:column;padding:6px 14px;border-left:3px solid var(--line);min-width:110px}
+.stat b{font-size:20px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted)}
+.stat.err{border-color:var(--err)} .stat.warn{border-color:var(--warn)} .stat.ok{border-color:var(--ok)}
+details.uses summary{cursor:pointer;color:var(--muted)}
+details.uses div{font-family:var(--mono);font-size:11px;padding-left:12px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+.toolbar label{display:inline-flex;gap:4px;align-items:center;color:var(--muted)}
+.gwrap{position:relative;flex:1;min-height:300px;overflow:hidden;background:var(--bg);
+  background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:20px 20px}
+.gwrap svg{width:100%;height:100%;display:block;cursor:grab;user-select:none}
+.gwrap svg.drag{cursor:grabbing}
+.gctl{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px}
+.gctl button{width:30px;height:30px;padding:0;background:var(--panel)}
+.ghint{position:absolute;left:10px;bottom:8px;font-size:11px;color:var(--muted);background:var(--panel);padding:2px 8px;border-radius:6px;border:1px solid var(--line);opacity:.9}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.fullv{display:flex;flex-direction:column;height:100%}
+/* graph */
+.edge{fill:none;stroke:var(--edge);stroke-width:1.2;opacity:.75}
+.edge.dead{stroke-dasharray:5 3}
+.edge.hi{stroke:var(--edge-hi);stroke-width:2.4;opacity:1}
+.edge.dim{opacity:.15}
+.edge.sfc{stroke:var(--c-sfc);stroke-dasharray:2 3}
+.edge.addr{stroke:var(--c-addr)}
+.node rect.b{fill:var(--node);stroke:var(--line);stroke-width:1}
+.node rect.h{stroke:none}
+.node text{fill:var(--text);font-size:11px;font-family:"Segoe UI",system-ui,Arial,sans-serif}
+.node text.t{font-weight:600;font-size:12px}
+.node text.s{fill:var(--muted);font-size:10px}
+.node text.p{font-size:10.5px;font-family:var(--mono)}
+.node line.pl{stroke:var(--muted);stroke-width:1}
+.node{cursor:pointer}
+.node.focus rect.b{stroke:var(--accent);stroke-width:2.5}
+.node.hi rect.b{stroke:var(--edge-hi);stroke-width:2}
+.node.dim{opacity:.35}
+.node.ext rect.b{stroke-dasharray:4 3;fill:var(--panel2)}
+.node.addr rect.b{fill:var(--panel2)}
+.etext{fill:var(--muted);font-size:10px}
+/* files */
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.fcard{display:flex;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+.fcard.on{border-color:var(--ok);box-shadow:inset 3px 0 0 var(--ok)}
+.fcard h4{margin:0 0 2px;font-size:13px}
+.fcard p{margin:2px 0;font-size:12px;color:var(--muted)}
+.fcard .st{font-size:12px;margin-top:6px}
+#drop{border:2px dashed var(--line);border-radius:10px;padding:24px;text-align:center;margin-bottom:16px;background:var(--panel)}
+#drop.over{border-color:var(--accent);background:var(--accent-bg)}
+#dragmask{position:fixed;inset:0;background:rgba(11,98,196,.12);border:4px dashed var(--accent);display:none;z-index:50;align-items:center;justify-content:center;font-size:22px;color:var(--accent);pointer-events:none}
+#dragmask.on{display:flex}
+#toast{position:fixed;right:16px;bottom:16px;background:var(--text);color:var(--bg);padding:8px 14px;border-radius:8px;display:none;z-index:60;max-width:420px}
+.need{margin:30px auto;max-width:520px;text-align:center;color:var(--muted)}
+.need .ico{margin:0 2px}
+.flex1{flex:1}
+.sfcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.sfccard{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;cursor:pointer}
+.sfccard:hover{border-color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:none;border-radius:0;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:none}
+.seg button.on{background:var(--accent-bg);color:var(--accent);font-weight:600}
+mark{background:#ffe58a;color:inherit;padding:0}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .ico{background:#e9e9e9;border-radius:3px;padding:1px} }
+:root[data-theme="dark"] .ico{background:#e9e9e9;border-radius:3px;padding:1px}
+
+.strip{display:inline-flex;flex-wrap:wrap;gap:1px;max-width:420px;vertical-align:middle}
+.strip i{display:block;width:7px;height:13px;border-radius:1px}
+.pill.res{background:var(--accent-bg);color:var(--accent);border-color:transparent}
+input[type=number]{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+</style></head>
+<body><div id="app">
+<header>
+  <h1>PCS7 Xref Explorer <span>· Chart Reference Data</span></h1>
+  <button id="back" class="navbtn" title="Zpět (Alt+←)" disabled>←</button><button id="fwd" class="navbtn" title="Vpřed (Alt+→)" disabled>→</button>
+  <input type="search" id="gsearch" placeholder="Hledat blok, typ, chart, adresu…  (Enter, zkratka /)">
+  <div id="fileChips"></div>
+  <span class="flex1"></span>
+  <button id="theme" title="Světlý / tmavý režim"><svg width="14" height="14" viewBox="0 0 16 16" style="vertical-align:-2px"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button>
+  <input type="file" id="fileInput" multiple accept=".csv,.txt,.cfg" hidden>
+</header>
+<div id="body">
+  <aside><div class="stabs" id="stabs"></div>
+    <div class="sfilter"><input type="search" id="sfilter" placeholder="Filtr (hierarchie, název, typ…)"></div>
+    <div id="side"></div></aside>
+  <div id="split"></div>
+  <main><div class="mtabs" id="mtabs"></div><div id="view"></div></main>
+</div></div>
+<div id="dragmask">Pusťte CSV exporty z PCS7</div><div id="toast"></div>
+<script>const ICONS={"rs": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAOCAYAAADwikbvAAAAgUlEQVR4nNWSQQ7DIAwEx1X+nc3LNwfq0GCq0GMtIWFrB9srAjA1YlIrugBsO69EBFIlJRh1bzgfDiLAk1l6vesyGw8StrF0jVt025f9ZlF02yKYnW/xeiL2HewG2sa+THrufByfWZCGLcEAUqOaw331X3b+F8PuZsFo2OoHgcnYJ/0ySAK7tfSgAAAAAElFTkSuQmCC", "cr": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAANCAYAAACgu+4kAAAAhUlEQVR4nJ2SQQ7AIAgEZxv//wZ96fZQm1JF05TLJgSGBRXvMN9DAGXM2jdHqUoiJo8ZvG7uQ6NTJ4Bds7HBdncKPxxETQFfm5VWb2M8sCTKhNz0Zw4KYNtIsr02cT3fvMZ0AwGttZc+kAt067NaiFqrGbRbS+0pQLYHCD8wBbCasKkH4ASIsmFpdAuZGQAAAABJRU5ErkJggg==", "sx": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAPCAYAAADtc08vAAAAuklEQVR4nJWSQRLCMAwDVwz/JvykPxWHNImcAgO+eGJXsixX1DC/hwBue9UG2yVDm+8Ae7IUvD370nNrNrQjrgS4x8rQPtTxZYUxWWqnAn+t3995k2tkvtbDjF+iEoCkfgXbHMfx9gLpvJTzuoJbdKa0safUiEN5TI3nVODF6lPuY35ocypc0gdRUbAczig7K4oCVBTYD+xW4UHqMGTE5kFOG6BFGgoqwWIe9+6g7kP6clXw13+w4QB4ARojp6IfczwhAAAAAElFTkSuQmCC", "ic": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAPCAYAAADtc08vAAAAoklEQVR4nJWRUQ6FIAwEdz0pN5F3k950/cBKi5gHTYhG6HYYiVzCehEAjvGrJJgZpPY+PkOzpgEk2WEIsoL8gaw+NJJqRqBhCKTz6ZNwE7a9TwKf/L620rlPAumEVIfwHqogRKurFWRm2cGq+UbtXtT/wo55kiilwFuOmLZq/j5IAEwEq+ZjJYId8ymgJ8dp3tRD/xK4RG9qHt7m5xfcq4fkAhUJpWZNhRXnAAAAAElFTkSuQmCC", "ac": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAANCAYAAACZ3F9/AAAAc0lEQVR4nJWSQRLAIAgDE8d/V19ODy0OIlqaEzLAEpUYaoKUGgGg2pTIdWwh+4hLjgKQpD1XADIXdHi5TUQbaRMZeEjU6WTfeRbg8UhDndaN1tb68k4IqadbXjxaisbRgMVjVgvx6xPYxkn+oXcyRf/+6g3MHiWsGaCPQQAAAABJRU5ErkJggg==", "bt": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAOCAYAAAAmL5yKAAAAj0lEQVR4nJWR0Q3EMAhD7VMGzSalm6ST+j56V9IE1NQ/SIkwz0DcJayLAFDGV+nvw7CSRP9Ib7V0umSXSd8xEUjbzMn9RiA5ERlEIH1Ga00eN461GGGLm0eCPEJOUMbJUQTSAOyQRhOgAMbnCJYSfLKmXsfRQJ6Z+/ojeFatldnftIO3mnbgt182cJ0ne6cvdE5B5Ir+cJEAAAAASUVORK5CYII=", "hw": "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%20shape-rendering%3D%22crispEdges%22%3E%3Crect%20x%3D%220.5%22%20y%3D%222.5%22%20width%3D%2215%22%20height%3D%2211%22%20fill%3D%22%23c0c0c0%22%20stroke%3D%22%23000%22/%3E%3Crect%20x%3D%222%22%20y%3D%224%22%20width%3D%223%22%20height%3D%228%22%20fill%3D%22%23008080%22%20stroke%3D%22%23000%22%20stroke-width%3D%22.5%22/%3E%3Crect%20x%3D%226%22%20y%3D%224%22%20width%3D%222%22%20height%3D%228%22%20fill%3D%22%23ffff00%22%20stroke%3D%22%23000%22%20stroke-width%3D%22.5%22/%3E%3Crect%20x%3D%229%22%20y%3D%224%22%20width%3D%222%22%20height%3D%228%22%20fill%3D%22%2300c000%22%20stroke%3D%22%23000%22%20stroke-width%3D%22.5%22/%3E%3Crect%20x%3D%2212%22%20y%3D%224%22%20width%3D%222%22%20height%3D%228%22%20fill%3D%22%230000c0%22%20stroke%3D%22%23000%22%20stroke-width%3D%22.5%22/%3E%3C/svg%3E"};
+/* PCS7-IO-Analyzer (github.com/javor55/PCS7-IO-Analyzer), MIT License, (c) 2026 javor55 */
+/**
+ * PCS 7 I/O Analyzer - Module Catalogue & MLFB Normalization
+ * Contains physical and communication specifications for Siemens S7-300 / S7-400,
+ * ET 200SP, ET 200M, ET 200S, ET 200iSP, ET 200SP HA/Ex, Axioline, SIMOCODE,
+ * Danfoss & SINAMICS drives, PA field devices, and power/network infrastructure.
+ */
+(() => {
+  'use strict';
+
+  function normMlfb(s) {
+    if (!s) return '';
+    const m = String(s).match(/(6ES[0-9]|6DL1|6GK[0-9]|3RK1|3UF7|6SL[0-9])[ _]([0-9]{3})[-_]([0-9A-Z*]{5})[-_]([0-9A-Z*]{1,4})/i);
+    if (m) return `${m[1].toUpperCase()} ${m[2]}-${m[3].toUpperCase()}-${m[4].toUpperCase()}`;
+    return String(s).replace(/^[^:]*:/, '').replace(/\s+/g, ' ').trim();
+  }
+
+  const catalog = {
+    // --- ET 200SP Digital Input ---
+    '6ES7 131-6BF00-0BA0': { type: 'DI', channels: 8, family: 'ET 200SP', width: 'bit' },
+    '6ES7 131-6BF00-0CA0': { type: 'DI', channels: 8, family: 'ET 200SP', width: 'bit' },
+    '6ES7 131-6BF01-0BA0': { type: 'DI', channels: 8, family: 'ET 200SP', width: 'bit' },
+    '6ES7 131-6BF00-0DA0': { type: 'DI', channels: 4, family: 'ET 200SP', width: 'bit' },
+    '6ES7 131-6FD00-0BB1': { type: 'DI', channels: 4, family: 'ET 200SP', width: 'bit' },
+    '6ES7 131-6FD01-0BB1': { type: 'DI', channels: 4, family: 'ET 200SP', width: 'bit' },
+
+    // --- ET 200SP Digital Output ---
+    '6ES7 132-6BF00-0BA0': { type: 'DO', channels: 8, family: 'ET 200SP', width: 'bit' },
+    '6ES7 132-6BF00-0CA0': { type: 'DO', channels: 8, family: 'ET 200SP', width: 'bit' },
+    '6ES7 132-6BF01-0BA0': { type: 'DO', channels: 8, family: 'ET 200SP', width: 'bit' },
+    '6ES7 132-6BF01-0CA0': { type: 'DO', channels: 8, family: 'ET 200SP', width: 'bit' },
+    '6ES7 132-6GD50-0BA0': { type: 'DO', channels: 4, family: 'ET 200SP', width: 'bit' },
+    '6ES7 132-6GD51-0BA0': { type: 'DO', channels: 4, family: 'ET 200SP', width: 'bit' },
+    '6ES7 132-6HD00-0BB0': { type: 'DO', channels: 4, family: 'ET 200SP', width: 'bit' },
+    '6ES7 132-6HD00-0BB1': { type: 'DO', channels: 4, family: 'ET 200SP', width: 'bit' },
+    '6ES7 132-6HD01-0BB1': { type: 'DO', channels: 4, family: 'ET 200SP', width: 'bit' },
+
+    // --- ET 200SP Analog Input ---
+    '6ES7 134-6GB00-0BA1': { type: 'AI', channels: 2, family: 'ET 200SP', width: 'word' },
+    '6ES7 134-6GD00-0BA1': { type: 'AI', channels: 4, family: 'ET 200SP', width: 'word' },
+    '6ES7 134-6GD01-0BA1': { type: 'AI', channels: 4, family: 'ET 200SP', width: 'word' },
+    '6ES7 134-6GF00-0AA1': { type: 'AI', channels: 8, family: 'ET 200SP', width: 'word' },
+    '6ES7 134-6HB00-0CA1': { type: 'AI', channels: 2, family: 'ET 200SP', width: 'word' },
+    '6ES7 134-6TD00-0CA1': { type: 'AI', channels: 4, family: 'ET 200SP', width: 'word' },
+
+    // --- ET 200SP Analog Output ---
+    '6ES7 135-6GB00-0BA1': { type: 'AO', channels: 2, family: 'ET 200SP', width: 'word' },
+    '6ES7 135-6HB00-0CA1': { type: 'AO', channels: 2, family: 'ET 200SP', width: 'word' },
+    '6ES7 135-6HD00-0BA1': { type: 'AO', channels: 4, family: 'ET 200SP', width: 'word' },
+
+    // --- ET 200M (S7-300) ---
+    '6ES7 321-1BH02-0AA0': { type: 'DI', channels: 16, family: 'ET 200M', width: 'bit' },
+    '6ES7 321-1BL00-0AA0': { type: 'DI', channels: 32, family: 'ET 200M', width: 'bit' },
+    '6ES7 322-1BH01-0AA0': { type: 'DO', channels: 16, family: 'ET 200M', width: 'bit' },
+    '6ES7 322-1BL00-0AA0': { type: 'DO', channels: 32, family: 'ET 200M', width: 'bit' },
+    '6ES7 323-1BH01-0AA0': { type: 'DI/DO', channels: 16, diChannels: 8, doChannels: 8, family: 'ET 200M', width: 'bit' },
+    '6ES7 331-7KF02-0AB0': { type: 'AI', channels: 8, family: 'ET 200M', width: 'word' },
+    '6ES7 331-7TF01-0AB0': { type: 'AI', channels: 8, family: 'ET 200M', width: 'word' },
+    '6ES7 332-5HB01-0AB0': { type: 'AO', channels: 2, family: 'ET 200M', width: 'word' },
+    '6ES7 332-5HD01-0AB0': { type: 'AO', channels: 4, family: 'ET 200M', width: 'word' },
+    '6ES7 332-5HF00-0AB0': { type: 'AO', channels: 8, family: 'ET 200M', width: 'word' },
+
+    // --- ET 200S ---
+    '6ES7 131-4BF00-0AA0': { type: 'DI', channels: 8, family: 'ET 200S', width: 'bit' },
+    '6ES7 131-4FB00-0AB0': { type: 'DI', channels: 2, family: 'ET 200S', width: 'bit' },
+    '6ES7 132-4HB01-0AB0': { type: 'DO', channels: 2, family: 'ET 200S', width: 'bit' },
+    '6ES7 134-4GB11-0AB0': { type: 'AI', channels: 2, family: 'ET 200S', width: 'word' },
+
+    // --- ET 200iSP ---
+    '6ES7 131-7RF00-0AB0': { type: 'DI', channels: 8, family: 'ET 200iSP', width: 'bit' },
+    '6ES7 132-7RD20-0AB0': { type: 'DO', channels: 4, family: 'ET 200iSP', width: 'bit' },
+    '6ES7 134-7TD00-0AB0': { type: 'AI', channels: 4, family: 'ET 200iSP', width: 'word' },
+    '6ES7 135-7TD00-0AB0': { type: 'AO', channels: 4, family: 'ET 200iSP', width: 'word' },
+
+    // --- ET 200SP HA / Ex ---
+    '6DL1 131-6BH00-0PH1': { type: 'DI', channels: 16, family: 'ET 200SP HA', width: 'bit' },
+    '6DL1 131-6TD00-0HX1': { type: 'DI', channels: 4, family: 'ET 200SP Ex', width: 'bit' },
+    '6DL1 132-6BH00-0PH1': { type: 'DO', channels: 16, family: 'ET 200SP HA', width: 'bit' },
+    '6DL1 132-6TD00-0HX1': { type: 'DI', channels: 4, family: 'ET 200SP Ex', width: 'bit' },
+    '6DL1 133-6PX00-0HW0': { type: 'OTHER', family: 'ET 200SP Ex PM E', isSystem: true },
+    '6DL1 134-6AF00-0PH1': { type: 'AI', channels: 8, family: 'ET 200SP HA', width: 'word' },
+    '6DL1 134-6TB00-0HX1': { type: 'AI', channels: 2, family: 'ET 200SP Ex', width: 'word' },
+
+    // --- Axioline (Phoenix Contact) ---
+    'AXL SE DI16/1': { type: 'DI', channels: 16, family: 'Axioline', width: 'bit' },
+    'AXL F DI16 NAM XC 1F': { type: 'DI', channels: 16, family: 'Axioline', width: 'bit' },
+    'AXL F AI8 1F': { type: 'AI', channels: 8, family: 'Axioline', width: 'word' },
+    'AXL F AI8 HART XC 1F': { type: 'AI', channels: 8, family: 'Axioline', width: 'word' },
+
+    // --- ET 200SP Motor Starters (3RK1) -> DEV ---
+    '3RK1 308-0AB00-0CP0': { type: 'DEV', family: 'ET 200SP Motor Starter', devType: 'DS 0.3-1A HF' },
+    '3RK1 308-0AC00-0CP0': { type: 'DEV', family: 'ET 200SP Motor Starter', devType: 'DS 0.9-3A HF' },
+    '3RK1 308-0AD00-0CP0': { type: 'DEV', family: 'ET 200SP Motor Starter', devType: 'DS 2.8-9A HF' },
+    '3RK1 308-0AE00-0CP0': { type: 'DEV', family: 'ET 200SP Motor Starter', devType: 'DS 4.0-12A HF' },
+    '3RK1 308-0BC00-0CP0': { type: 'DEV', family: 'ET 200SP Motor Starter', devType: 'RS 0.9-3A HF' },
+    '3RK1 308-0DC00-0CP0': { type: 'DEV', family: 'ET 200SP Motor Starter', devType: 'F-DS 0.9-3A HF' },
+
+    // --- SIMOCODE (3UF7) -> DEV ---
+    '3UF7 011-1A*00-0': { type: 'DEV', family: 'SIMOCODE', devType: 'SIMOCODE pro V PN' },
+    '3UF7 011-1A*00-1': { type: 'DEV', family: 'SIMOCODE', devType: 'SIMOCODE pro V PN GP' },
+
+    // --- ET 200SP Energy Meter -> DEV ---
+    '6ES7 134-6PA00-0BD0': { type: 'DEV', family: 'ET 200SP Energy Meter', devType: 'AI Energy Meter 400VAC' },
+    '6ES7 134-6PA01-0BD0': { type: 'DEV', family: 'ET 200SP Energy Meter', devType: 'AI Energy Meter 400VAC ST' },
+
+    // --- ET 200SP Communication PtP -> DEV ---
+    '6ES7 137-6AA00-0BA0': { type: 'DEV', family: 'ET 200SP Comm', devType: 'CM PtP' },
+
+    // --- System / Infrastructure / Non-Process (OTHER) ---
+    '6ES7 193-6PA00-0AA0': { type: 'OTHER', family: 'ET 200SP Server Module', isSystem: true },
+    '6ES7 193-6AR00-0AA0': { type: 'OTHER', family: 'ET 200SP BusAdapter', isSystem: true },
+    '6ES7 133-6CV15-1AM0': { type: 'OTHER', family: 'ET 200SP BU Cover', isSystem: true },
+    '6ES7 155-6AU00-0CN0': { type: 'OTHER', family: 'ET 200SP IM 155-6 PN ST', isSystem: true },
+    '6ES7 155-6AU01-0CN0': { type: 'OTHER', family: 'ET 200SP IM 155-6 PN HF', isSystem: true },
+    '6ES7 151-3AA23-0AB0': { type: 'OTHER', family: 'ET 200S IM 151-3 PN', isSystem: true },
+    '6ES7 151-3BA23-0AB0': { type: 'OTHER', family: 'ET 200S IM 151-3 PN HF', isSystem: true },
+    '6ES7 138-4CA01-0AA0': { type: 'OTHER', family: 'ET 200S PM-E DC24V', isSystem: true },
+    '6ES7 138-4CB11-0AB0': { type: 'OTHER', family: 'ET 200S PM-E DC24..48V', isSystem: true },
+    '6ES7 153-2BA70-0XB0': { type: 'OTHER', family: 'ET 200M IM 153-2 Redundancy', isSystem: true },
+    '6ES7 153-4BA00-0XB0': { type: 'OTHER', family: 'ET 200M IM 153-4 PN HF', isSystem: true },
+    '6DL1 155-6AU00-0PM0': { type: 'OTHER', family: 'ET 200SP HA IM 155-6 PN', isSystem: true },
+    '6DL1 193-6AR00-0AA0': { type: 'OTHER', family: 'ET 200SP HA BusAdapter', isSystem: true },
+    '6DL1 133-6PX00-0HW0': { type: 'OTHER', family: 'ET 200SP Ex PM-E', isSystem: true },
+    '6ES7 158-3AD10-0XA0': { type: 'DEV', family: 'PN/PN Coupler', devType: 'PN/PN Coupler V4.2' },
+    '6GK1 411-5BB00': { type: 'OTHER', family: 'PN/PB LINK HA', isSystem: true },
+    '6GK1 411-5BB00-V40': { type: 'OTHER', family: 'PN/PB LINK HA', isSystem: true },
+    '6ES7 400-1JA00-0AA0': { type: 'OTHER', family: 'S7-400 Rack UR2', isSystem: true },
+    '6ES7 400-1JA11-0AA1': { type: 'OTHER', family: 'S7-400 Rack UR2', isSystem: true },
+    '6ES7 400-2JA10-0AA0': { type: 'OTHER', family: 'S7-400 Rack CR3', isSystem: true },
+    '6ES7 405-0KA02-0AA0': { type: 'OTHER', family: 'S7-400 PS 405 10A DC', isSystem: true },
+    '6ES7 407-0KA02-0AA0': { type: 'OTHER', family: 'S7-400 PS 407 10A AC', isSystem: true },
+    '6ES7 410-5HX08-0AB0': { type: 'OTHER', family: 'CPU 410-5H', isSystem: true },
+    '6ES7 416-3ES06-0AB0': { type: 'OTHER', family: 'CPU 416-3 PN/DP', isSystem: true },
+    '6ES7 960-1AA06-0XA0': { type: 'OTHER', family: 'H Sync module', isSystem: true },
+    '6GK7 443-1EX30-0XE0': { type: 'OTHER', family: 'CP 443-1', isSystem: true },
+    '6GK5 204-0BA00-2AF2': { type: 'OTHER', family: 'SCALANCE X204', isSystem: true },
+    '6GK5 204-2BB10-2AA3': { type: 'OTHER', family: 'SCALANCE X204-2', isSystem: true },
+    '6GK5 206-2BB00-2AC2': { type: 'OTHER', family: 'SCALANCE XC206-2', isSystem: true },
+    '6GK5 206-2BS00-2AC2': { type: 'OTHER', family: 'SCALANCE XC206-2SFP', isSystem: true }
+  };
+
+  const exp = { normMlfb, catalog };
+  if (typeof module !== 'undefined' && module.exports) module.exports = exp;
+  if (typeof window !== 'undefined') window.PCS7Catalog = exp;
+  if (typeof globalThis !== 'undefined') globalThis.PCS7Catalog = exp;
+})();
+
+/**
+ * PCS 7 I/O Analyzer - Parser Module
+ * Handles hardware configuration export grammar (CFG/TXT),
+ * Cross-References CSV parsing, device inference, and module enrichment.
+ */
+(() => {
+  'use strict';
+
+  const uid = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+  const quoted = s => [...s.matchAll(/"([^"]*)"/g)].map(x => x[1]);
+
+  function getCatalog() {
+    return (typeof globalThis !== 'undefined' && globalThis.PCS7Catalog) || (typeof window !== 'undefined' && window.PCS7Catalog) || { catalog: {}, normMlfb: s => s };
+  }
+
+  function decode(buf) {
+    for (const e of ['utf-8', 'windows-1250', 'iso-8859-2']) {
+      try {
+        return new TextDecoder(e, { fatal: true }).decode(buf);
+      } catch {}
+    }
+    return new TextDecoder().decode(buf);
+  }
+
+  function detect(text, name = '') {
+    const t = text.slice(0, 120000);
+    if (/\bSTATION\s+(?:S7|PC)|\b(?:IO|DP)SUBSYSTEM\s+\d+/i.test(t) && /\bBEGIN\b[\s\S]*\bEND\b/i.test(t)) return 'hw';
+    if (/Symbol\s*;\s*Address\s*;\s*Data type\s*;\s*R\/W/i.test(t)) return 'xref';
+    if (/^\s*\{[\s\S]*"projects"\s*:/i.test(t)) return 'project';
+    if (/^\s*\{[\s\S]*"(?:6ES|6DL|3RK|3UF)/i.test(t)) return 'catalog';
+    return /\.csv$/i.test(name) ? 'xref' : 'unknown';
+  }
+
+  function baseNode(h, file, line) {
+    return { ...h, id: uid(), file, lineStart: line, lineEnd: line, children: [], comments: [], symbols: [], inAddrs: [], outAddrs: [], params: [], raw: '', warnings: [] };
+  }
+
+  function header(line) {
+    const { normMlfb } = getCatalog();
+    const q = quoted(line), o = { header: line.trim(), name: q.at(-1) || line.trim(), mlfb: '', version: '', slot: null, subslot: null, address: null, bus: '', kind: 'object' };
+    const sm = line.match(/(?:^|,\s*)SLOT\s+(\d+)/i), su = line.match(/SUBSLOT\s+(\d+)/i), io = line.match(/IOADDRESS\s+(\d+)/i), dp = line.match(/DPADDRESS\s+(\d+)/i);
+    if (sm) o.slot = +sm[1];
+    if (su) o.subslot = +su[1];
+    if (io) { o.address = +io[1]; o.bus = 'PROFINET'; }
+    if (dp) { o.address = +dp[1]; o.bus = 'PROFIBUS'; }
+    if (q.length > 1) {
+      o.mlfb = normMlfb(q.at(-2));
+      if (/^V\d/i.test(o.mlfb) && q.length > 2) o.mlfb = normMlfb(q.at(-3));
+    }
+    if (/^STATION\s/i.test(line)) o.kind = 'station';
+    else if (/CONTROLLER\s+(?:IO|DP)SUBSYSTEM/i.test(line)) o.kind = 'controller';
+    else if (/^(?:IO|DP)SUBSYSTEM\s+\d+.*(?:IO|DP)ADDRESS/i.test(line) && o.slot == null) o.kind = 'device';
+    else if (o.slot != null || /^RACK\s/i.test(line)) o.kind = o.subslot != null ? 'submodule' : 'module';
+    return o;
+  }
+
+  function parseHw(text, file) {
+    const { normMlfb } = getCatalog();
+    const ls = text.replace(/\r/g, '').split('\n'), root = baseNode({ kind: 'project', name: file.replace(/\.[^.]+$/, ''), header: '', mlfb: '', bus: '' }, file, 1);
+    let station = root, controller = null, device = null, current = root, mode = '';
+    for (let i = 0; i < ls.length; i++) {
+      const t = ls[i].trim(); let n = null;
+      if (/^STATION\s/i.test(t)) { n = baseNode(header(t), file, i + 1); root.children.push(n); station = n; controller = device = null; }
+      else if (/CONTROLLER\s+(?:IO|DP)SUBSYSTEM/i.test(t)) { n = baseNode(header(t), file, i + 1); station.children.push(n); controller = n; device = null; }
+      else if (/^(?:IO|DP)SUBSYSTEM\s/i.test(t) || /^RACK\s/i.test(t)) {
+        n = baseNode(header(t), file, i + 1);
+        if (n.kind === 'device') { (controller || station).children.push(n); device = n; }
+        else if (device && n.subslot != null) {
+          const parentSlotMod = device.children.find(c => c.slot === n.slot && c.subslot == null);
+          if (parentSlotMod) {
+            parentSlotMod.children.push(n);
+          } else {
+            device.children.push(n);
+          }
+        } else {
+          (device || controller || station).children.push(n);
+        }
+      }
+      if (n) { if (current) current.lineEnd = i; current = n; mode = ''; continue; }
+      if (!current) continue;
+      if (/^COMMENT\s/i.test(t)) { const q = quoted(t); if (q.length) current.comments.push(q[0]); }
+      else if (/^MLFB\s/i.test(t)) { const q = quoted(t); if (q[0]) current.mlfb = normMlfb(q[0]); }
+      else if (/^LOCAL_IN_ADDRESSES/i.test(t)) mode = 'in';
+      else if (/^LOCAL_OUT_ADDRESSES/i.test(t)) mode = 'out';
+      else if (/^PARAMETER/i.test(t)) mode = 'param';
+      else if (/^ADDRESS\s/i.test(t)) { const a = (t.match(/-?\d+/g) || []).map(Number); if (a.length) (mode === 'out' ? current.outAddrs : current.inAddrs).push(a); }
+      else if (/^SYMBOL\s/i.test(t)) { const m = t.match(/^SYMBOL\s+([IO])\s*,\s*(\d+)/i), q = quoted(t); if (m) current.symbols.push({ dir: m[1].toUpperCase(), offset: +m[2], name: q[0] || '', comment: q[1] || '' }); }
+      else if (mode === 'param' && t && !/^END\b/.test(t)) current.params.push(t);
+    }
+    function propagateSubslots(node) {
+      if (node.kind === 'module' && node.subslot == null && node.children.length) {
+        for (const sub of node.children) {
+          if (sub.subslot != null) {
+            if (sub.inAddrs.length) node.inAddrs.push(...sub.inAddrs);
+            if (sub.outAddrs.length) node.outAddrs.push(...sub.outAddrs);
+            if (sub.symbols.length) node.symbols.push(...sub.symbols);
+            if (sub.params.length) node.params.push(...sub.params);
+            if (!node.comments.length && sub.comments.length) node.comments.push(...sub.comments);
+            if (!node.mlfb && sub.mlfb) node.mlfb = sub.mlfb;
+          }
+        }
+      }
+      node.children.forEach(propagateSubslots);
+    }
+    propagateSubslots(root);
+
+    function finish(n) {
+      n.lineEnd = Math.max(n.lineEnd, n.lineStart);
+      n.raw = ls.slice(n.lineStart - 1, Math.min(ls.length, n.lineStart + 130)).join('\n');
+      n.children.forEach(finish);
+      enrich(n);
+    }
+    finish(root);
+    return root;
+  }
+
+  function inferDevice(n) {
+    const text = (n.name + ' ' + (n.header || '') + ' ' + (n.mlfb || '')).toUpperCase();
+    if (/SIMOCODE.*<[12]>|BASIC TYPE [12]/.test(text)) return { type: 'DEV', family: 'SIMOCODE', devType: 'SIMOCODE pro V' };
+    if (/DANFOSS|STANDTARD_TELEGRAM|PP0_6_PCD|PPO TYPE [36]|--> 0 PKW|--> PPO 3|--> EXTENDED|\bEXTENDED\b/i.test(text) && /DANFOSS|FC-|298[01]|VLT|DRIVE|PPO|TELEGRAM|PCD/i.test(text)) {
+      return { type: 'DEV', family: 'Danfoss Inverter', devType: 'Měnič frekvence Danfoss' };
+    }
+    if (/SINAMICS|IDS_TEL352|SIEMENS TELEGRAM 352|STANDARD TELEGRAM [12]0?/i.test(text)) {
+      return { type: 'DEV', family: 'SINAMICS', devType: 'Měnič frekvence SINAMICS' };
+    }
+    if (/\bAI\s*:\s*OUT\b|\bTOT:\s*TOTAL|\bBATCHING_|\bDISPLAY_VALUE\b|\bCONTROL_BLOCK\b|\bTOTAL\b|\bDO\s*:\s*SP\b|\bDI\s*:\s*OUT\b/i.test(text) ||
+       (/DPSUBSYSTEM\s+\d+.*["']AI["']/i.test(n.header) && (n.inAddrs[0]?.[2] === 5 || n.inAddrs[0]?.[2] === 4))) {
+      return { type: 'DEV', family: 'PA Field Device', devType: 'Převodník Profibus-PA' };
+    }
+    if (/GENERAL CONTROLLER|GENERAL STATUS\/CONTROL|I\/O - [12] WORDS? (?:IN|OUT)|I\/O - 1 FLOAT (?:IN|OUT)/i.test(text)) {
+      return { type: 'DEV', family: 'PMA Controller', devType: 'Regulátor PMA KS92' };
+    }
+    if (/ROTODYNAMICPUMP/i.test(text)) return { type: 'DEV', family: 'KSB Pump', devType: 'Čerpadlo KSB' };
+    if (/EEM-MA770|SUBM_METERING|SUBM_COUNTER_ENERGY|ENERGYMETER/i.test(text)) return { type: 'DEV', family: 'Energy Meter', devType: 'Měření energie' };
+    if (/\b(?:64|32|16|8)\s*BYTES?\s*(?:INPUT|OUTPUT)|PN_PN_MODUL/i.test(text)) return { type: 'DEV', family: 'PN/PN Coupler', devType: 'PN/PN Coupler' };
+    if (/UPS1600|QUINT4-UPS|CAPAROC/i.test(text)) return { type: 'DEV', family: 'Power/UPS', devType: 'Napájení a UPS' };
+    return null;
+  }
+
+  function infer(n, extCatalog) {
+    const { normMlfb, catalog: defCatalog } = getCatalog();
+    const cat = extCatalog || defCatalog;
+    const norm = normMlfb(n.mlfb || n.name);
+    const c = cat[norm] || cat[n.mlfb];
+    if (c) {
+      if (c.isSystem) return { type: 'OTHER', channels: 0, family: c.family, width: '', confidence: 'verified', basis: 'systémový modul katalogu', isSystem: true };
+      if (c.type === 'DEV') return { type: 'DEV', channels: 0, family: c.family, devType: c.devType, width: '', confidence: 'verified', basis: 'zařízení katalogu MLFB' };
+      return { ...c, confidence: 'verified', basis: 'katalog MLFB' };
+    }
+    const dev = inferDevice(n);
+    if (dev) {
+      return { type: 'DEV', channels: 0, family: dev.family, devType: dev.devType, width: '', confidence: 'verified', basis: 'rozpoznané sběrnicové zařízení' };
+    }
+    const text = (n.name + ' ' + (n.mlfb || '') + ' ' + (n.header || '')).toUpperCase();
+    if (/_DP_INTEGR_|_MPI_DPI_|_PORT_|INTERFACE_CT|SERVER MODULE|-SM\b|SYNC MODULE|H SYNC|SCALANCE|PORT\s*\d|BU COVER|UPS-BAT|QUINT4-PS/i.test(text)) {
+      return { type: 'OTHER', channels: 0, family: '', width: '', confidence: 'verified', basis: 'systémový / diagnostický objekt', isSystem: true };
+    }
+    if (n.slot === 0) {
+      return { type: 'OTHER', channels: 0, family: '', width: '', confidence: 'verified', basis: 'objekt slotu 0', isSystem: true };
+    }
+    const allAddrs = [...n.inAddrs, ...n.outAddrs];
+    if (allAddrs.length && allAddrs.every(a => a[2] === 0 || a[0] >= 8000)) {
+      return { type: 'OTHER', channels: 0, family: '', width: '', confidence: 'verified', basis: 'diagnostické / systémové adresy', isSystem: true };
+    }
+    if (n.inAddrs.length && n.outAddrs.length) {
+      return { type: 'DEV', channels: 0, family: 'Kombinované zařízení', width: '', confidence: 'verified', basis: 'zařízení s I/O daty' };
+    }
+    const dir = n.outAddrs.length ? 'out' : n.inAddrs.length ? 'in' : '';
+    if (!dir) return { type: 'OTHER', channels: 0, family: '', width: '', confidence: 'verified', basis: 'bez procesních I/O', isSystem: true };
+
+    let type = dir === 'out' ? 'DO' : 'DI';
+    if (/\bAI\b|ANALOG INPUT|6ES7 331|6ES7 134/.test(text)) type = 'AI';
+    if (/\bAO\b|ANALOG OUTPUT|6ES7 332|6ES7 135/.test(text)) type = 'AO';
+    let channels = n.symbols.length ? Math.max(...n.symbols.map(x => x.offset)) + 1 : 0;
+    for (const p of n.params) {
+      const x = p.match(/CHANNEL_\w+\s*,\s*(?:DI|DO|AI|AO)\s*,\s*(\d+)/i);
+      if (x) channels = Math.max(channels, +x[1] + 1);
+    }
+    const a = (dir === 'out' ? n.outAddrs : n.inAddrs)[0];
+    if (!channels && a) {
+      const bytes = a[2] || 0;
+      channels = (type === 'DI' || type === 'DO') ? Math.min(bytes * 8, 64) : Math.floor(bytes / 2);
+    }
+    return { type, channels, family: '', width: (type === 'DI' || type === 'DO') ? 'bit' : 'word', confidence: channels ? 'probable' : 'unknown', basis: channels ? 'odvozeno ze symbolů/parametrů/adresy' : 'počet kanálů nelze určit' };
+  }
+
+  function isProcessModule(n, x) {
+    const text = (n.name + ' ' + n.mlfb + ' ' + n.header).toUpperCase();
+    if (n.kind !== 'module') return false;
+    if (n.subslot != null) return false;
+    if (x.isSystem || x.type === 'OTHER') return false;
+    if (n.slot === 0 || /PORT\s*\d|SERVER MODULE|-SM\b|INTERFACE|PORT_SUBMODUL|SYNC MODULE|H SYNC|SCALANCE/.test(text)) return false;
+    if (x.type === 'DEV') return true;
+    if (!['DI', 'DO', 'AI', 'AO', 'DI/DO'].includes(x.type)) return false;
+    const addrs = [...n.inAddrs, ...n.outAddrs].map(a => a[0]);
+    if (addrs.length && Math.min(...addrs) >= 8000) return false;
+    return true;
+  }
+
+  function formatAddress(base, type, i) {
+    if (type === 'DI') return `I${base + Math.floor(i / 8)}.${i % 8}`;
+    if (type === 'DO') return `Q${base + Math.floor(i / 8)}.${i % 8}`;
+    if (type === 'AI') return `IW${base + i * 2}`;
+    if (type === 'AO') return `QW${base + i * 2}`;
+    return '';
+  }
+
+  function enrich(n, extCatalog) {
+    const x = infer(n, extCatalog), processData = isProcessModule(n, x);
+    const prevChannelsMap = new Map((n.channels || []).map(c => [c.address, c]));
+    Object.assign(n, {
+      ioType: processData ? x.type : 'OTHER',
+      processData,
+      channelCount: processData ? (x.channels || (x.type === 'DEV' ? n.symbols.length || 1 : 0)) : 0,
+      family: x.family || '',
+      devType: x.devType || '',
+      confidence: x.confidence || (processData ? 'probable' : 'verified'),
+      basis: x.basis || '',
+      channels: []
+    });
+    if (!processData) return;
+
+    // 1. Mixed DI/DO module (e.g. 6ES7 323-1BH01-0AA0)
+    if (x.type === 'DI/DO') {
+      const inBase = n.inAddrs[0]?.[0], outBase = n.outAddrs[0]?.[0];
+      const diCh = x.diChannels || 8, doCh = x.doChannels || 8;
+      if (inBase != null) {
+        for (let i = 0; i < diCh; i++) {
+          const sy = n.symbols.find(s => s.dir === 'I' && s.offset === i);
+          const addr = `I${inBase + Math.floor(i / 8)}.${i % 8}`;
+          const prev = prevChannelsMap.get(addr);
+          n.channels.push({
+            index: i, ioType: 'DI', address: addr, hwSymbol: sy?.name || '', hwComment: sy?.comment || '',
+            refs: [], status: 'unknown', confidence: x.confidence, physical: prev?.physical || 'unchecked',
+            reservation: prev?.reservation || '', note: prev?.note || '', checkedAt: prev?.checkedAt
+          });
+        }
+      }
+      if (outBase != null) {
+        for (let i = 0; i < doCh; i++) {
+          const sy = n.symbols.find(s => s.dir === 'O' && s.offset === i);
+          const addr = `Q${outBase + Math.floor(i / 8)}.${i % 8}`;
+          const prev = prevChannelsMap.get(addr);
+          n.channels.push({
+            index: diCh + i, ioType: 'DO', address: addr, hwSymbol: sy?.name || '', hwComment: sy?.comment || '',
+            refs: [], status: 'unknown', confidence: x.confidence, physical: prev?.physical || 'unchecked',
+            reservation: prev?.reservation || '', note: prev?.note || '', checkedAt: prev?.checkedAt
+          });
+        }
+      }
+      n.channelCount = n.channels.length;
+      return;
+    }
+
+    // 2. Standard Process I/O Cards (DI, DO, AI, AO)
+    if (['DI', 'DO', 'AI', 'AO'].includes(x.type) && x.channels) {
+      const arr = (x.type === 'DO' || x.type === 'AO') ? n.outAddrs : n.inAddrs, base = arr[0]?.[0];
+      if (base != null) {
+        for (let i = 0; i < x.channels; i++) {
+          const sy = n.symbols.find(s => s.offset === i);
+          const addr = formatAddress(base, x.type, i);
+          const prev = prevChannelsMap.get(addr);
+          n.channels.push({
+            index: i, ioType: x.type, address: addr, hwSymbol: sy?.name || '', hwComment: sy?.comment || '',
+            refs: [], status: 'unknown', confidence: x.confidence, physical: prev?.physical || 'unchecked',
+            reservation: prev?.reservation || '', note: prev?.note || '', checkedAt: prev?.checkedAt
+          });
+        }
+      }
+      return;
+    }
+
+    // 3. Field Devices (DEV)
+    if (x.type === 'DEV') {
+      if (n.symbols.length) {
+        for (let i = 0; i < n.symbols.length; i++) {
+          const s = n.symbols[i];
+          const addrs = s.dir === 'O' ? n.outAddrs : n.inAddrs;
+          const base = addrs[0] ? addrs[0][0] : 0;
+          let addr = '';
+          if (s.name && /^[IQ]\d+\.[0-7]$/i.test(s.name)) {
+            addr = s.name.toUpperCase();
+          } else {
+            const len = addrs[0] ? addrs[0][2] : 1;
+            if (len <= 2 && s.offset < 8 && !/AI|AQ|ANALOG|FLOAT|PA/i.test(n.name + ' ' + n.header)) {
+              addr = `${s.dir}${base}.${s.offset}`;
+            } else {
+              addr = `${s.dir}W${base + s.offset}`;
+            }
+          }
+          const prev = prevChannelsMap.get(addr);
+          n.channels.push({
+            index: i, ioType: 'DEV', address: addr, hwSymbol: s.name, hwComment: s.comment,
+            refs: [], status: 'dev-unused', confidence: x.confidence, physical: prev?.physical || 'unchecked',
+            reservation: prev?.reservation || '', note: prev?.note || '', checkedAt: prev?.checkedAt
+          });
+        }
+      } else {
+        let idx = 0;
+        for (const a of n.inAddrs) {
+          const base = a[0], len = a[2] || 0;
+          if (len === 0 || base >= 8000) continue;
+          if (len === 1) {
+            const addr = `IB${base}`;
+            const prev = prevChannelsMap.get(addr);
+            n.channels.push({ index: idx++, ioType: 'DEV', address: addr, hwSymbol: '', hwComment: '', refs: [], status: 'dev-unused', confidence: x.confidence, physical: prev?.physical || 'unchecked', reservation: prev?.reservation || '', note: prev?.note || '', checkedAt: prev?.checkedAt });
+          } else if (len === 2) {
+            const addr = `IW${base}`;
+            const prev = prevChannelsMap.get(addr);
+            n.channels.push({ index: idx++, ioType: 'DEV', address: addr, hwSymbol: '', hwComment: '', refs: [], status: 'dev-unused', confidence: x.confidence, physical: prev?.physical || 'unchecked', reservation: prev?.reservation || '', note: prev?.note || '', checkedAt: prev?.checkedAt });
+          } else {
+            for (let b = 0; b < len; b += 2) {
+              const addr = `IW${base + b}`;
+              const prev = prevChannelsMap.get(addr);
+              n.channels.push({ index: idx++, ioType: 'DEV', address: addr, hwSymbol: '', hwComment: '', refs: [], status: 'dev-unused', confidence: x.confidence, physical: prev?.physical || 'unchecked', reservation: prev?.reservation || '', note: prev?.note || '', checkedAt: prev?.checkedAt });
+            }
+          }
+        }
+        for (const a of n.outAddrs) {
+          const base = a[0], len = a[2] || 0;
+          if (len === 0 || base >= 8000) continue;
+          if (len === 1) {
+            const addr = `QB${base}`;
+            const prev = prevChannelsMap.get(addr);
+            n.channels.push({ index: idx++, ioType: 'DEV', address: addr, hwSymbol: '', hwComment: '', refs: [], status: 'dev-unused', confidence: x.confidence, physical: prev?.physical || 'unchecked', reservation: prev?.reservation || '', note: prev?.note || '', checkedAt: prev?.checkedAt });
+          } else if (len === 2) {
+            const addr = `QW${base}`;
+            const prev = prevChannelsMap.get(addr);
+            n.channels.push({ index: idx++, ioType: 'DEV', address: addr, hwSymbol: '', hwComment: '', refs: [], status: 'dev-unused', confidence: x.confidence, physical: prev?.physical || 'unchecked', reservation: prev?.reservation || '', note: prev?.note || '', checkedAt: prev?.checkedAt });
+          } else {
+            for (let b = 0; b < len; b += 2) {
+              const addr = `QW${base + b}`;
+              const prev = prevChannelsMap.get(addr);
+              n.channels.push({ index: idx++, ioType: 'DEV', address: addr, hwSymbol: '', hwComment: '', refs: [], status: 'dev-unused', confidence: x.confidence, physical: prev?.physical || 'unchecked', reservation: prev?.reservation || '', note: prev?.note || '', checkedAt: prev?.checkedAt });
+            }
+          }
+        }
+      }
+      n.channelCount = n.channels.length;
+    }
+  }
+
+  function parseCsv(text, file) {
+    const rows = []; let row = [], cell = '', quotedCell = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (quotedCell) {
+        if (c === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+        else if (c === '"') quotedCell = false;
+        else cell += c;
+      } else if (c === '"') quotedCell = true;
+      else if (c === ';') { row.push(cell); cell = ''; }
+      else if (c === '\n') { row.push(cell.replace(/\r$/, '')); if (row.some(v => v.trim())) rows.push(row); row = []; cell = ''; }
+      else cell += c;
+    }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    if (!rows.length) return [];
+    const h = rows.shift().map(v => v.trim().toLowerCase()), idx = k => h.indexOf(k);
+    return rows.map(r => ({
+      file,
+      symbol: r[idx('symbol')] || '',
+      address: (r[idx('address')] || '').trim().toUpperCase().replace(/\s/g, ''),
+      dataType: r[idx('data type')] || '',
+      rw: r[idx('r/w')] || '',
+      chart: r[idx('chart')] || '',
+      element: r[idx('chart element')] || '',
+      comment: r[idx('element comment')] || '',
+      type: r[idx('type')] || ''
+    })).filter(x => x.address);
+  }
+
+  const exp = { detect, decode, header, baseNode, parseHw, parseCsv, inferDevice, infer, isProcessModule, enrich, formatAddress };
+  if (typeof module !== 'undefined' && module.exports) module.exports = exp;
+  if (typeof window !== 'undefined') window.PCS7Parser = exp;
+  if (typeof globalThis !== 'undefined') globalThis.PCS7Parser = exp;
+})();
+
+'use strict';
+/* ================= Parsing PCS7 "Display Chart Reference Data" CSV exports ================= */
+
+const FILE_KINDS = {
+  bt: {name:'Block types', ico:'bt', pcs7:'Block types',
+       gives:'Seznam všech bloků v CFC: typ, FB/FC, komentář. Základ hierarchie (i nenapojené bloky).'},
+  ic: {name:'Block interconnections', ico:'ic', pcs7:'Block interconnections',
+       gives:'Propojení blok.výstup → blok.vstup (i mezi CFC). Nutné pro grafy a kontrolu napojení.'},
+  cr: {name:'Cross-References Chart Element → Address', ico:'cr', pcs7:'Cross-References Chart Element -> Address',
+       gives:'Adresy I/Q/M/DB a symboly napojené na piny bloků.'},
+  sx: {name:'Cross-References SFC → Chart Element', ico:'sx', pcs7:'Cross-References SFC -> Chart Element',
+       gives:'Které piny CFC bloků čte/zapisuje SFC (kroky, tranzice).'},
+  ac: {name:'Accesses in SFC types', ico:'ac', pcs7:'Accesses in SFC types',
+       gives:'Které I/O SFC typu se používají uvnitř sekvence (kroky, tranzice, timery).'},
+  rs: {name:'Run sequence', ico:'rs', pcs7:'Run sequence',
+       gives:'Ve kterém OB / runtime skupině a v jakém pořadí blok běží.'},
+  hw: {name:'HW Config', ico:'hw', pcs7:'HW Config – Station → Export (.cfg)',
+       gives:'Stanice, RIO a karty s kanály. Spolu s Chart Element → Address ukáže rezervy a nepoužité kanály. Lze nahrát víc stanic.'},
+};
+
+function decodeBuffer(buf){
+  const u8 = new Uint8Array(buf);
+  if (u8[0]===0xFF && u8[1]===0xFE) return new TextDecoder('utf-16le').decode(u8);
+  if (u8[0]===0xFE && u8[1]===0xFF) return new TextDecoder('utf-16be').decode(u8);
+  try { return new TextDecoder('utf-8',{fatal:true}).decode(u8).replace(/^﻿/,''); }
+  catch(e){ return new TextDecoder('windows-1250').decode(u8); }
+}
+
+/* Lenient ;-separated CSV parser. PCS7 does not escape quotes inside quoted fields
+   (e.g. ""Run" operating state"), so a quote only closes a field if it is followed by ; or EOL. */
+function parseCSV(text){
+  const rows=[]; let row=[]; let i=0; const n=text.length;
+  const isEnd = c => c===undefined || c===';' || c==='\r' || c==='\n';
+  while(i<n){
+    if(text[i]==='"'){
+      let j=i+1, start=j, s='';
+      while(j<n){
+        if(text[j]==='"'){
+          const nx=text[j+1];
+          if(isEnd(nx)){ s+=text.slice(start,j); break; }
+          if(nx==='"' && isEnd(text[j+2])){ s+=text.slice(start,j)+'"'; j++; break; }
+        }
+        j++;
+      }
+      if(j>=n) s+=text.slice(start,n);
+      row.push(s); i=j+1;
+    } else {
+      let j=i; while(j<n && text[j]!==';' && text[j]!=='\r' && text[j]!=='\n') j++;
+      row.push(text.slice(i,j)); i=j;
+    }
+    if(text[i]===';'){ i++; if(i<n && text[i]!=='\r' && text[i]!=='\n') continue; }
+    if(text[i]==='\r') i++;
+    if(text[i]==='\n') i++;
+    if(!(row.length===1 && row[0]==='')) rows.push(row);
+    row=[];
+  }
+  if(row.length) rows.push(row);
+  return rows;
+}
+
+function detectKind(text){
+  if (typeof PCS7Parser!=='undefined' && PCS7Parser.detect(text.slice(0,200000), '')==='hw') return 'hw';
+  const first = text.slice(0, 400).split(/\r?\n/)[0];
+  if (/^\s*OB\d+\s*;/.test(first)) return 'rs';
+  const h = first.toLowerCase();
+  if (h.startsWith('source chart;')) return 'ic';
+  if (h.startsWith('block type;') && h.includes('s7 name')) return 'bt';
+  if (h.startsWith('sfc type;')) return 'ac';
+  if (h.includes('symbol') && h.includes('address') && h.includes('chart element')) return 'cr';
+  if (h.includes('sfc') && h.includes('chart element')) return 'sx';
+  return null;
+}
+
+function headerIndex(hdr, names){
+  const low = hdr.map(x=>x.trim().toLowerCase());
+  const out={};
+  for (const [k,n] of Object.entries(names)){
+    const i = low.indexOf(n.toLowerCase());
+    out[k] = i;
+  }
+  return out;
+}
+
+/* ---------------- Model ---------------- */
+function newModel(){
+  return {
+    files:{},           // kind -> {fileName, rows}
+    blocks:new Map(),   // id -> block
+    charts:new Map(),   // path -> chart
+    edges:[],
+    addrs:new Map(),    // address -> {addr, refs:[]}
+    sfcTypes:new Map(), // type -> {name, ios:Map(base->io), fromAccess:bool}
+    sfcCharts:new Map(),// path -> {path, rows:[]}
+    run:[],             // run sequence entries
+    obs:new Map(),      // ob -> {ob, name, count}
+    folderRoot:null,
+  };
+}
+
+const SEP2 = '\\\\'; // the PCS7 "\\" between hierarchy folder and chart
+
+function splitChartPath(p){
+  const k = p.indexOf(SEP2);
+  if (k<0) return {folder:'', chain:[p]};
+  return {folder:p.slice(0,k), chain:p.slice(k+2).split('\\')};
+}
+
+function ensureChart(M, path, isSfc){
+  let c = M.charts.get(path);
+  if (!c){
+    const {folder, chain} = splitChartPath(path);
+    const parent = chain.length>1 ? folder + SEP2 + chain.slice(0,-1).join('\\') : null;
+    c = {path, folder, name:chain[chain.length-1], parent, blocks:new Set(), isSfc:false, top:null};
+    M.charts.set(path, c);
+    if (parent){ ensureChart(M, parent); const b = ensureBlockById(M, path, parent, c.name); b.kind = 'chart'; if(!b.type) b.type='(CFC chart)'; M.charts.get(parent).blocks.add(path); }
+    c.top = parent ? M.charts.get(parent).top : path;
+  }
+  if (isSfc) c.isSfc = true;
+  return c;
+}
+
+function ensureBlockById(M, id, chart, name){
+  let b = M.blocks.get(id);
+  if (!b){
+    b = {id, chart, name, type:'', fb:'', comment:'', kind:'block', pins:new Map(), inE:[], outE:[], run:[], inBT:false};
+    M.blocks.set(id, b);
+  }
+  return b;
+}
+
+/* chart + element ("Blk.Pin.Sub" or ".PIN" for the chart itself) -> {block, pin} */
+function ensureElement(M, chartPath, element, type){
+  ensureChart(M, chartPath, type==='(SFC chart)');
+  const dot = element.indexOf('.');
+  const bname = dot<0 ? element : element.slice(0,dot);
+  const pin = dot<0 ? '' : element.slice(dot+1);
+  let b;
+  if (bname===''){ // the chart itself (SFC chart / chart interface)
+    const c = M.charts.get(chartPath);
+    b = ensureBlockById(M, chartPath, c.parent, c.name);
+    if (type==='(SFC chart)'){ b.kind='sfc'; c.isSfc=true; }
+    else if (b.kind==='block') b.kind='chart';
+    if (!b.type && type) b.type = type;
+  } else {
+    const id = chartPath + '\\' + bname;
+    if (M.charts.has(id) || type==='(CFC chart)'){ ensureChart(M, id); }
+    b = ensureBlockById(M, id, chartPath, bname);
+    M.charts.get(chartPath).blocks.add(id);
+    if (type && (!b.type || b.type==='(CFC chart)')) b.type = type;
+    if (type==='(CFC chart)') b.kind='chart';
+    if (type==='(SFC chart)') b.kind='sfc';
+  }
+  return {b, pin};
+}
+
+function ensurePin(b, name, dir, comment){
+  let p = b.pins.get(name);
+  if (!p){ p = {name, dir:dir||'', comment:'', edges:[], addrs:[], sfc:[]}; b.pins.set(name,p); }
+  if (dir && !p.dir) p.dir = dir;
+  if (comment && !p.comment) p.comment = comment;
+  return p;
+}
+
+function loadBT(M, rows){
+  const ix = headerIndex(rows[0], {type:'Block type', s7:'S7 name', chart:'Chart', block:'Block', comment:'Block comment'});
+  for (let r=1;r<rows.length;r++){
+    const x = rows[r]; const chart = x[ix.chart]; const name = x[ix.block];
+    if (!chart || name===undefined) continue;
+    const type = x[ix.type]||'';
+    const {b} = ensureElement(M, chart, name, type);
+    b.type = type || b.type; b.fb = x[ix.s7]||b.fb; if (x[ix.comment]) b.comment = x[ix.comment];
+    b.inBT = true;
+  }
+}
+
+function loadIC(M, rows){
+  // duplicate header names -> fixed positions
+  for (let r=1;r<rows.length;r++){
+    const x = rows[r]; if (x.length<8) continue;
+    const s = ensureElement(M, x[0], x[1], x[3]);
+    const d = ensureElement(M, x[4], x[5], x[7]);
+    const sp = ensurePin(s.b, s.pin, 'out', x[2]);
+    const dp = ensurePin(d.b, d.pin, 'in', x[6]);
+    const e = {a:s.b.id, ap:s.pin, b:d.b.id, bp:d.pin, dead:(x[8]||'').trim()!==''};
+    M.edges.push(e); s.b.outE.push(e); d.b.inE.push(e); sp.edges.push(e); dp.edges.push(e);
+  }
+}
+
+function loadCR(M, rows){
+  const ix = headerIndex(rows[0], {sym:'Symbol', addr:'Address', dt:'Data type', rw:'R/W', chart:'Chart', el:'Chart element', com:'Element comment', type:'Type'});
+  for (let r=1;r<rows.length;r++){
+    const x = rows[r]; const addr = (x[ix.addr]||'').trim(); if (!addr || !x[ix.chart]) continue;
+    const rw = (x[ix.rw]||'').trim();
+    const {b,pin} = ensureElement(M, x[ix.chart], x[ix.el]||'', x[ix.type]);
+    const sym = (x[ix.sym]||'').trim();
+    const ref = {addr, sym: sym==='---'?'':sym, dt:x[ix.dt]||'', rw, block:b.id, pin, comment:x[ix.com]||''};
+    const p = ensurePin(b, pin, rw.includes('W')&&!rw.includes('R') ? 'out' : 'in', ref.comment);
+    p.addrs.push(ref);
+    let a = M.addrs.get(addr); if (!a){ a={addr, refs:[], sym:'', dt:ref.dt}; M.addrs.set(addr,a); }
+    if (ref.sym && !a.sym) a.sym = ref.sym;
+    a.refs.push(ref);
+  }
+}
+
+function sfcTypeEntry(M, name){
+  let t = M.sfcTypes.get(name);
+  if (!t){ t = {name, ios:new Map(), fromAccess:false}; M.sfcTypes.set(name,t); }
+  return t;
+}
+function sfcIO(t, ioName){
+  const base = ioName.split('.')[0];
+  let io = t.ios.get(base);
+  if (!io){ io = {name:ioName, base, section:'', assign:'', charact:'', rw:'', uses:[]}; t.ios.set(base, io); }
+  return io;
+}
+
+function loadAC(M, rows){
+  const ix = headerIndex(rows[0], {type:'SFC type', io:'I/O name', sec:'Section', as:'Assignment', ch:'Characteristic', rw:'R/W', seq:'Sequencer', ad:'Address', ty:'Type', val:'Value'});
+  for (let r=1;r<rows.length;r++){
+    const x = rows[r]; if (!x[ix.type]) continue;
+    const t = sfcTypeEntry(M, x[ix.type]); t.fromAccess = true;
+    const io = sfcIO(t, x[ix.io]||'');
+    io.name = x[ix.io]; io.section = x[ix.sec]||io.section; io.assign = x[ix.as]||io.assign; io.charact = x[ix.ch]||io.charact;
+    const rw = x[ix.rw]||''; if (!io.rw.includes(rw)) io.rw += rw;
+    io.uses.push({seq:x[ix.seq]||'', addr:x[ix.ad]||'', kind:x[ix.ty]||'', rw, val:x[ix.val]||''});
+  }
+}
+
+function loadSX(M, rows){
+  const ix = headerIndex(rows[0], {chart:'Chart', el:'Chart element', bt:'Block type', rw:'R/W', sfc:'SFC', ad:'Address', ty:'Type'});
+  for (let r=1;r<rows.length;r++){
+    const x = rows[r]; if (!x[ix.chart]) continue;
+    const sfcFull = x[ix.sfc]||''; const li = sfcFull.lastIndexOf('\\');
+    const sfcId = li>0 ? sfcFull.slice(0,li) : sfcFull; const seq = li>0 ? sfcFull.slice(li+1) : '';
+    const rw = x[ix.rw]||''; const btype = x[ix.bt]||'';
+    const use = {seq, addr:x[ix.ad]||'', kind:x[ix.ty]||'', rw};
+    if (!sfcId.includes(SEP2) && sfcId===btype){
+      // SFC type instance accessing its own interface -> fallback for "Accesses in SFC types"
+      const {b,pin} = ensureElement(M, x[ix.chart], x[ix.el]||'', btype);
+      const t = sfcTypeEntry(M, btype);
+      if (!t.fromAccess){
+        const io = sfcIO(t, pin);
+        if (!io.rw.includes(rw)) io.rw += rw;
+        if (!io.section) io.section = rw==='W' ? 'OUT' : 'IN';
+        io.uses.push(Object.assign({inst:b.id}, use));
+      }
+      continue;
+    }
+    const {b,pin} = ensureElement(M, x[ix.chart], x[ix.el]||'', btype);
+    const p = ensurePin(b, pin, rw==='W' ? 'in' : '', '');
+    const ref = Object.assign({sfc:sfcId, block:b.id, pin}, use);
+    p.sfc.push(ref);
+    if (sfcId.includes(SEP2)){
+      ensureChart(M, sfcId, true);
+      const sb = ensureBlockById(M, sfcId, M.charts.get(sfcId).parent, M.charts.get(sfcId).name); sb.kind='sfc'; if(!sb.type) sb.type='(SFC chart)';
+      let sc = M.sfcCharts.get(sfcId); if (!sc){ sc={path:sfcId, rows:[]}; M.sfcCharts.set(sfcId, sc); }
+      sc.rows.push(ref);
+    } else {
+      // another SFC type accessing a foreign block (rare)
+      let sc = M.sfcCharts.get(sfcId); if (!sc){ sc={path:sfcId, rows:[], isType:true}; M.sfcCharts.set(sfcId, sc); }
+      sc.rows.push(ref);
+    }
+  }
+}
+
+function loadRS(M, text){
+  const lines = text.split(/\r?\n/);
+  const joined=[];
+  for (const l of lines){
+    if (/^\s*OB\d+\s*;/.test(l)) joined.push(l);
+    else if (joined.length && l.trim()) joined[joined.length-1] += ' ' + l.trim();
+  }
+  let idx=0;
+  for (const l of joined){
+    const m = l.match(/^\s*(OB\d+)\s*;(.*)$/); if (!m) continue;
+    const ob = m[1]; const parts = m[2].split(';');
+    const obName = parts[0].replace(/"/g,'').replace(/\s+/g,' ').trim();
+    let o = M.obs.get(ob); if (!o){ o={ob, name:obName, count:0}; M.obs.set(ob,o); }
+    let group='', ratio='', path='', type='', comment='';
+    if (parts.length===2 && parts[1].includes(SEP2)) { path = parts[1].trim(); }
+    else if (parts.length>=5){
+      group = parts[1].trim(); ratio = parts[2].replace(/"/g,'').replace(/\s+/g,' ').trim(); path = parts[4].trim();
+      const tc = parts.slice(5).join(';').trim().replace(/^"/,'').replace(/"$/,'');
+      const bar = tc.indexOf('|');
+      type = (bar<0 ? tc : tc.slice(0,bar)).trim(); comment = bar<0 ? '' : tc.slice(bar+1).trim();
+    } else continue;
+    if (!path.includes(SEP2)) continue;
+    const k = path.indexOf(SEP2); const li = path.lastIndexOf('\\');
+    let b;
+    if (li > k+1){
+      const chart = path.slice(0,li), name = path.slice(li+1);
+      b = ensureElement(M, chart, name, type).b;
+      if (!b.type) b.type = type;
+      if (comment && !b.comment) b.comment = comment;
+    } else {
+      ensureChart(M, path);
+      const c = M.charts.get(path);
+      b = ensureBlockById(M, path, c.parent, c.name);
+      if (b.kind==='block') b.kind = 'sfc';
+      c.isSfc = true; if (!b.type) b.type='(SFC chart)';
+    }
+    const e = {ob, obName, group, ratio, block:b.id, pos:++idx, n:++o.count};
+    b.run.push(e); M.run.push(e);
+  }
+}
+
+function buildFolders(M){
+  const root = {name:'Projekt', path:'', folders:new Map(), charts:[], nCharts:0};
+  for (const c of M.charts.values()){
+    if (c.parent) continue;
+    let f = root;
+    if (c.folder){
+      let acc='';
+      for (const seg of c.folder.split('\\')){
+        acc = acc ? acc+'\\'+seg : seg;
+        let nf = f.folders.get(seg);
+        if (!nf){ nf={name:seg, path:acc, folders:new Map(), charts:[], nCharts:0}; f.folders.set(seg,nf); }
+        f = nf;
+      }
+    }
+    f.charts.push(c.path);
+  }
+  const count = f => { let n=f.charts.length; for (const s of f.folders.values()) n+=count(s); f.nCharts=n; f.charts.sort(natCmpChart); return n; };
+  count(root);
+  M.folderRoot = root;
+  M.folderIndex = new Map();
+  const idx = f => { M.folderIndex.set(f.path, f); for (const s of f.folders.values()) idx(s); };
+  idx(root);
+}
+function natCmp(a,b){ return a.localeCompare(b, undefined, {numeric:true, sensitivity:'base'}); }
+function natCmpChart(a,b){ return natCmp(a,b); }
+
+function buildModel(texts){
+  const M = newModel();
+  const order = ['bt','ic','cr','ac','sx','rs'];
+  for (const k of order){
+    const f = texts[k]; if (!f || k==='hw') continue;
+    if (k==='rs'){ loadRS(M, f.text); M.files[k] = {fileName:f.fileName, rows:M.run.length}; continue; }
+    const rows = parseCSV(f.text);
+    ({bt:loadBT, ic:loadIC, cr:loadCR, ac:loadAC, sx:loadSX})[k](M, rows);
+    M.files[k] = {fileName:f.fileName, rows:rows.length-1};
+  }
+  if (texts.hw && texts.hw.length && typeof PCS7Parser!=='undefined'){
+    M.hw = {roots: texts.hw.map(f=>PCS7Parser.parseHw(f.text, f.fileName))};
+    let mods=0; for (const r of M.hw.roots) hwWalk(r, n=>{ if (n.processData) mods++; });
+    M.files.hw = {fileName: texts.hw.map(f=>f.fileName).join(', '), rows: mods, unit:'karet'};
+    linkHW(M);
+  }
+  // SFC instance pin directions from SFC type I/O sections
+  for (const b of M.blocks.values()){
+    const t = M.sfcTypes.get(b.type);
+    if (t){ b.kind = 'sfci';
+      for (const io of t.ios.values()){ const p=b.pins.get(io.base); if (p && io.section) p.dir = io.section==='OUT' ? 'out' : 'in'; }
+    }
+  }
+  buildFolders(M);
+  return M;
+}
+
+if (typeof module!=='undefined') module.exports = {parseCSV, detectKind, buildModel, decodeBuffer, splitChartPath};
+
+'use strict';
+/* ================= HW Config (.cfg) – channels, reserves, checks =================
+   HW Config parsing + module catalogue: PCS7-IO-Analyzer (vendor/parser.js, vendor/catalog.js, MIT). */
+
+const HWST = {
+  used:     {t:'použito',            cls:'ok',   col:'var(--ok)'},
+  conflict: {t:'vícenásobný zápis',  cls:'err',  col:'var(--err)'},
+  reserve:  {t:'rezerva',            cls:'res',  col:'var(--accent)'},
+  named:    {t:'pojmenováno, v CFC nepoužito', cls:'warn', col:'var(--warn)'},
+  dev:      {t:'data zařízení (nepoužito)',     cls:'',     col:'var(--c-ext)'},
+  unknown:  {t:'neznámý počet kanálů', cls:'',  col:'var(--c-ext)'},
+};
+const IOTYPES = ['DI','DO','AI','AO','DEV'];
+
+function normAddr(a){ return String(a||'').toUpperCase().replace(/\s+/g,'').replace(/^P(?=[IQ])/,''); }
+function parseIOAddr(a){ const m = normAddr(a).match(/^([IQ])([BWD]?)(\d+)(?:\.(\d))?$/); if (!m) return null; return {dir:m[1], w:m[2]||'X', byte:+m[3], bit:m[4]!=null?+m[4]:null}; }
+const RESERVE_RE = /\b(rezerv\w*|reserve|spare|voln[ýéá]|volny|nevyu[zž]ito)\b/i;
+
+function hwWalk(n, fn, ctx={}){
+  const c = Object.assign({}, ctx);
+  if (n.kind==='project') c.project=n; if (n.kind==='station') c.station=n; if (n.kind==='controller') c.controller=n; if (n.kind==='device') c.device=n;
+  fn(n, c);
+  (n.children||[]).forEach(x=>hwWalk(x, fn, c));
+}
+
+function linkHW(M){
+  const roots = M.hw.roots;
+  const amap = new Map();
+  for (const a of M.addrs.values()){ const k=normAddr(a.addr); let l=amap.get(k); if(!l){ l=[]; amap.set(k,l);} l.push(...a.refs); }
+  const get = k => amap.get(k) || [];
+  M.hw.ch = []; M.hw.byAddr = new Map(); M.hw.index = new Map(); M.hw.ranges = [];
+  for (const r of roots) hwWalk(r, (n, ctx)=>{
+    M.hw.index.set(n.id, {n, ctx});
+    for (const a of n.inAddrs||[]) if (a[2]) M.hw.ranges.push({dir:'I', s:a[0], e:a[0]+a[2]-1, n});
+    for (const a of n.outAddrs||[]) if (a[2]) M.hw.ranges.push({dir:'Q', s:a[0], e:a[0]+a[2]-1, n});
+    for (const c of n.channels||[]){
+      let refs = get(c.address), via = '';
+      const p = parseIOAddr(c.address);
+      if (!refs.length && p){
+        // indirect: byte / word / dword access covering this channel
+        const cand = [];
+        if (p.w==='X'){ cand.push(`${p.dir}B${p.byte}`, `${p.dir}W${p.byte}`, `${p.dir}W${p.byte-1}`, `${p.dir}D${p.byte}`, `${p.dir}D${p.byte-1}`, `${p.dir}D${p.byte-2}`, `${p.dir}D${p.byte-3}`); }
+        else if (p.w==='W'){ cand.push(`${p.dir}B${p.byte}`, `${p.dir}B${p.byte+1}`, `${p.dir}D${p.byte}`, `${p.dir}D${p.byte-2}`); }
+        for (const k of cand){ const r=get(k); if (r.length){ refs = refs.concat(r); via = via || k; } }
+      }
+      const writers = new Set(refs.filter(r=>r.rw.includes('W')).map(r=>r.block+'.'+r.pin));
+      let st;
+      if (c.confidence==='unknown') st='unknown';
+      else if (writers.size>1 && !via) st='conflict';
+      else if (refs.length) st='used';
+      else if (c.ioType==='DEV' || n.ioType==='DEV') st='dev';
+      else if (!c.hwSymbol || RESERVE_RE.test(c.hwSymbol+' '+c.hwComment)) st='reserve';
+      else st='named';
+      const e = {c, n, ctx, refs, via, st, type: c.ioType || n.ioType};
+      M.hw.ch.push(e); M.hw.byAddr.set(normAddr(c.address), e);
+    }
+  });
+  // CFC I/Q references without a HW channel
+  M.hw.orphans = [];
+  for (const a of M.addrs.values()){
+    const p = parseIOAddr(a.addr); if (!p) continue;
+    const k = normAddr(a.addr);
+    if (M.hw.byAddr.has(k)) continue;
+    const rng = M.hw.ranges.find(r=>r.dir===p.dir && p.byte>=r.s && p.byte<=r.e);
+    if (rng && (rng.n.channels||[]).length && p.w!=='X') continue;            // byte/word access to an existing card
+    M.hw.orphans.push({a, p, rng: rng ? rng.n : null});
+  }
+}
+
+function hwStats(list){
+  const s = {all:list.length, used:0, conflict:0, reserve:0, named:0, dev:0, unknown:0, byType:{}};
+  for (const t of IOTYPES) s.byType[t] = {all:0, used:0, reserve:0, named:0, other:0};
+  for (const e of list){ s[e.st]++; const b=s.byType[e.type]||s.byType.DEV; b.all++; if (e.st==='used'||e.st==='conflict') b.used++; else if (e.st==='reserve') b.reserve++; else if (e.st==='named') b.named++; else b.other++; }
+  return s;
+}
+function chUnder(node){ const out=[]; const ids=new Set(); hwWalk(node, n=>ids.add(n)); for (const e of M.hw.ch) if (ids.has(e.n)) out.push(e); return out; }
+function hwNodeTitle(n){ const a = n.address!=null ? ` · ${n.bus==='PROFINET'?'PN':'DP'} ${n.address}` : ''; return (n.slot!=null && n.kind!=='device' ? `Slot ${n.slot}${n.subslot!=null?'.'+n.subslot:''} – ` : '') + n.name + (n.kind==='device'?a:''); }
+function hwLoc(e, short){ const d=e.ctx.device; const parts=[]; if (!short && e.ctx.station) parts.push(e.ctx.station.name); if (d) parts.push(d.name); parts.push('slot '+(e.n.slot??'?')); return parts.join(' › '); }
+function hwLink(id, text){ return `<a class="lnk" data-go="hw" data-id="${esc(id)}">${esc(text)}</a>`; }
+function hwRefList(e){
+  if (!e.refs.length) return '';
+  return (e.via?`<span class="muted">přes ${esc(e.via)}:</span> `:'') + e.refs.slice(0,4).map(r=>{ const b=M.blocks.get(r.block); return `<span class="muted">${esc(b&&b.chart?chartShort(b.chart)+'\\':'')}</span>${bl(r.block)}<span class="mono">.${esc(r.pin)}</span> <span class="pill">${esc(r.rw)}</span>`; }).join('<br>') + (e.refs.length>4?`<br><span class="muted">… +${e.refs.length-4}</span>`:'');
+}
+function hwStatusPill(st){ const s=HWST[st]; return `<span class="pill ${s.cls}">${s.t}</span>`; }
+function channelStrip(list){
+  return `<span class="strip">${list.map(e=>`<i style="background:${HWST[e.st].col}" title="${esc(e.c.address+' '+(e.c.hwSymbol||'')+' – '+HWST[e.st].t)}"></i>`).join('')}</span>`;
+}
+
+/* ---------- sidebar ---------- */
+function sideHW(f){
+  if (!M.hw) return needFiles(['hw'],'strom HW');
+  let h='';
+  const rec = (n, depth) => {
+    if (n.kind==='module' || n.kind==='submodule'){
+      if (!n.processData) return '';
+      const list = M.hw.ch.filter(e=>e.n===n); const s=hwStats(list);
+      if (f && !(n.name+' '+n.mlfb+' '+list.map(e=>e.c.address+' '+e.c.hwSymbol).join(' ')).toLowerCase().includes(f)) return '';
+      return `<div class="tn" data-tn="hw" data-id="${esc(n.id)}" title="${esc(n.mlfb)}"><span class="tw"></span><span class="pill">${esc(n.ioType)}</span><span>${esc(hwNodeTitle(n))}</span><span class="cnt">${s.reserve?`<b style="color:var(--accent)">${s.reserve}</b>/`:''}${s.all}</span></div>`;
+    }
+    const kids = (n.children||[]).map(c=>rec(c, depth+1)).join('');
+    if (!kids && n.kind!=='project') return '';
+    const key='H:'+n.id; const open = SIDE.open.has(key) || !!f || n.kind==='project' || n.kind==='station' || n.kind==='controller';
+    const s=hwStats(chUnder(n));
+    const ico = n.kind==='device' ? GI.rio : n.kind==='station' ? GI.cpu : n.kind==='project' ? GI.folder : GI.bus;
+    return `<div class="tn" data-tn="hw" data-id="${esc(n.id)}"><span class="tw" data-tog="${esc(key)}">${open?'▾':'▸'}</span>${ico}<span>${esc(n.kind==='controller'?n.name.replace(/^CONTROLLER\s*/,''):hwNodeTitle(n))}</span><span class="cnt" title="rezervy / kanálů">${s.reserve?`<b style="color:var(--accent)">${s.reserve}</b>/`:''}${s.all||''}</span></div>${open?`<div class="tc">${kids}</div>`:''}`;
+  };
+  h += `<div class="tn" data-tn="hw" data-id=""><span class="tw"></span>${GI.folder}<b>Přehled HW a rezerv</b></div>`;
+  for (const r of M.hw.roots) h += rec(r, 0);
+  return h;
+}
+
+/* ---------- main view ---------- */
+function viewHW(v){
+  if (!M) return;
+  if (!M.hw){ v.innerHTML = needFiles(['hw'],'analýzu HW a rezerv') + `<div class="need">HW Config: SIMATIC Manager → HW Config → Station → Export… (.cfg). Pro párování s CFC přidejte ${icon('cr')} Cross-References Chart Element → Address.</div>`; return; }
+  const item = NAV.id ? M.hw.index.get(NAV.id) : null;
+  if (item && (item.n.kind==='module' || item.n.kind==='submodule') && item.n.processData) return viewHWModule(v, item);
+  if (item && item.n.kind!=='project') return viewHWNode(v, item);
+  return viewHWOverview(v);
+}
+
+function statTiles(s){
+  return `<div class="row">
+    <div class="stat"><b>${s.all}</b><span>kanálů</span></div>
+    <div class="stat ok"><b>${s.used}</b><span>použito v CFC</span></div>
+    <div class="stat" style="border-color:var(--accent)"><b>${s.reserve}</b><span>rezerv</span></div>
+    <div class="stat warn"><b>${s.named}</b><span>pojmenováno, nepoužito</span></div>
+    <div class="stat err"><b>${s.conflict}</b><span>vícenásobný zápis</span></div>
+    ${s.dev?`<div class="stat"><b>${s.dev}</b><span>data zařízení</span></div>`:''}</div>`;
+}
+function typeTable(s){
+  return `<table class="t" style="max-width:640px"><tr><th>Typ</th><th>Celkem</th><th>Použito</th><th>Rezerva</th><th>Pojmenováno/nepoužito</th><th>Volné %</th></tr>${IOTYPES.filter(t=>s.byType[t].all).map(t=>{ const b=s.byType[t]; return `<tr><td><b>${t}</b></td><td>${b.all}</td><td>${b.used}</td><td><b style="color:var(--accent)">${b.reserve}</b></td><td>${b.named}</td><td>${t==='DEV'?'':Math.round(100*b.reserve/Math.max(1,b.all))+' %'}</td></tr>`; }).join('')}</table>`;
+}
+
+function viewHWOverview(v){
+  const mode = NAV.mode || 'sum';
+  const s = hwStats(M.hw.ch);
+  v.innerHTML = `<div class="fullv"><div class="toolbar"><b>${GI.cpu} HW a rezervy</b> <span class="muted">${esc(M.files.hw.fileName)}</span><span class="flex1"></span>
+     <span class="seg" id="hwMode">${[['sum','Přehled'],['res','Hledač rezerv'],['chk','Kontroly']].map(([k,l])=>`<button data-m="${k}" class="${mode===k?'on':''}">${l}</button>`).join('')}</span></div>
+     <div class="pad" id="hwBody" style="overflow:auto;flex:1"></div></div>`;
+  $('#hwMode').onclick = e => { const m=e.target.dataset.m; if (m) go({view:'hw', mode:m}); };
+  const body = $('#hwBody');
+  if (!M.files.cr) body.insertAdjacentHTML('beforeend', `<div class="card" style="border-color:var(--warn)">Bez exportu ${icon('cr')} <b>Cross-References Chart Element → Address</b> nejde poznat, co je v CFC použité – všechny kanály se symbolem se tváří jako „pojmenováno, nepoužito“.</div>`);
+  if (mode==='res') return hwReserveFinder(body);
+  if (mode==='chk') return hwChecks(body);
+  // devices table
+  const devs=[]; for (const r of M.hw.roots) hwWalk(r, (n,ctx)=>{ if (n.kind==='device' || (n.kind==='station')) { const list=chUnder(n).filter(e=> n.kind==='device' || !e.ctx.device); if (list.length) devs.push({n, ctx, list}); } });
+  body.insertAdjacentHTML('beforeend', `<div class="card"><h3>Celkem</h3>${statTiles(s)}<div style="margin-top:12px">${typeTable(s)}</div></div>
+    <div class="card"><h3>Stanice / RIO</h3><div class="legend" style="margin-bottom:8px">${Object.entries(HWST).map(([k,x])=>`<span><i style="background:${x.col}"></i>${x.t}</span>`).join('')}</div>
+    <table class="t"><tr><th>Stanice</th><th>Adresa</th><th>DI rez./celk.</th><th>DO</th><th>AI</th><th>AO</th><th>Kanály</th></tr>
+    ${devs.map(d=>{ const st=hwStats(d.list); const c=t=>{ const b=st.byType[t]; return b.all?`<b style="color:var(--accent)">${b.reserve}</b> / ${b.all}`:'<span class="muted">–</span>'; };
+      return `<tr><td>${d.n.kind==='device'?GI.rio:GI.cpu} ${hwLink(d.n.id, d.n.kind==='device'?d.n.name:d.n.name+' (centrální)')}<div class="muted" style="font-size:11px">${esc(d.n.comments?.[0]||'')}</div></td><td class="nw">${d.n.address!=null?(d.n.bus==='PROFINET'?'PN ':'DP ')+d.n.address:''}</td><td class="nw">${c('DI')}</td><td class="nw">${c('DO')}</td><td class="nw">${c('AI')}</td><td class="nw">${c('AO')}</td><td>${channelStrip(d.list)}</td></tr>`; }).join('')}</table></div>`);
+}
+
+function hwFilterState(){ return Object.assign({types:['DI','DO','AI','AO'], scope:'', named:false, q:'', need:{DI:0,DO:0,AI:0,AO:0}}, NAV.opt||{}); }
+function hwReserveFinder(body){
+  const st = hwFilterState();
+  const devs=[]; for (const r of M.hw.roots) hwWalk(r, n=>{ if (n.kind==='device'||n.kind==='station') devs.push(n); });
+  body.innerHTML += `<div class="card"><div class="row">
+      <span class="seg" id="rfTypes">${['DI','DO','AI','AO'].map(t=>`<button data-t="${t}" class="${st.types.includes(t)?'on':''}">${t}</button>`).join('')}</span>
+      <select id="rfScope"><option value="">všechny stanice</option>${devs.map(n=>`<option value="${esc(n.id)}" ${st.scope===n.id?'selected':''}>${esc(n.name)}</option>`).join('')}</select>
+      <label class="muted"><input type="checkbox" id="rfNamed" ${st.named?'checked':''}> i pojmenované, ale v CFC nepoužité</label>
+      <input type="search" id="rfQ" placeholder="filtr: modul, adresa, symbol" value="${esc(st.q)}" style="width:220px">
+      <span class="flex1"></span><button id="rfCsv">Export CSV</button></div>
+    <div class="row" style="margin-top:10px"><b>Potřebuji:</b>${['DI','DO','AI','AO'].map(t=>`<label>${t} <input type="number" min="0" data-need="${t}" value="${st.need[t]||0}" style="width:60px"></label>`).join('')}
+      <button class="primary" id="rfNeed">Navrhnout kanály</button><span class="muted">vybírá z karet s nejvíc rezervami, aby byly nové signály pohromadě</span></div></div>
+    <div id="rfOut"></div>`;
+  const scopeSet = st.scope ? new Set(chUnder(M.hw.index.get(st.scope).n)) : null;
+  const q = st.q.trim().toLowerCase();
+  let list = M.hw.ch.filter(e=> (e.st==='reserve' || (st.named && e.st==='named')) && st.types.includes(e.type) && (!scopeSet || scopeSet.has(e)));
+  if (q) list = list.filter(e=>matchTokens((e.c.address+' '+e.c.hwSymbol+' '+e.c.hwComment+' '+e.n.name+' '+e.n.mlfb+' '+hwLoc(e)).toLowerCase(), q));
+  // proposal
+  const want = st.need; let pick = null;
+  if (NAV.propose){
+    pick = new Set();
+    for (const t of ['DI','DO','AI','AO']){
+      let rem = +want[t]||0; if (!rem) continue;
+      const by = new Map(); for (const e of list.filter(e=>e.type===t)){ (by.get(e.n)||by.set(e.n,[]).get(e.n)).push(e); }
+      const groups=[...by.values()].sort((a,b)=>b.length-a.length);
+      // prefer a single card that fits all, otherwise largest first
+      const fit = groups.filter(g=>g.length>=rem).sort((a,b)=>a.length-b.length)[0];
+      for (const g of (fit?[fit]:groups)){ if (rem<=0) break; for (const e of g.slice(0,rem)) pick.add(e); rem -= Math.min(rem,g.length); }
+      if (rem>0) toast(`Nedostatek rezerv ${t}: chybí ${rem}`);
+    }
+    list = list.filter(e=>pick.has(e));
+  }
+  // group by module
+  const byMod = new Map(); for (const e of list){ (byMod.get(e.n)||byMod.set(e.n,[]).get(e.n)).push(e); }
+  $('#rfOut').innerHTML = `<div class="muted" style="margin-bottom:6px">${list.length} kanálů na ${byMod.size} kartách${pick?' – <b>návrh</b> <a class="lnk" id="rfClr">zrušit návrh</a>':''}</div>
+    <div class="tablewrap"><table class="t"><tr><th>Stanice › slot</th><th>Karta</th><th>Typ</th><th>Adresa</th><th>HW symbol</th><th>Komentář</th><th>Stav</th></tr>
+    ${[...byMod.entries()].map(([n,es])=>es.map((e,i)=>`<tr>${i===0?`<td rowspan="${es.length}" class="nw">${esc(hwLoc(e,true))}</td><td rowspan="${es.length}">${hwLink(n.id, n.name)}<div class="muted mono" style="font-size:11px">${esc(n.mlfb)}</div><div class="muted" style="font-size:11px">${es.length} vol. z ${M.hw.ch.filter(x=>x.n===n).length}</div></td>`:''}
+      <td>${esc(e.type)}</td><td class="mono nw">${esc(e.c.address)}</td><td>${esc(e.c.hwSymbol)}</td><td class="muted">${esc(e.c.hwComment)}</td><td>${hwStatusPill(e.st)}</td></tr>`).join('')).join('')}</table></div>`;
+  const upd = patch => go({view:'hw', mode:'res', opt:Object.assign({}, st, patch)}, false);
+  $('#rfTypes').onclick=e=>{ const t=e.target.dataset.t; if(!t) return; const ts=st.types.includes(t)?st.types.filter(x=>x!==t):st.types.concat(t); upd({types:ts}); };
+  $('#rfScope').onchange=e=>upd({scope:e.target.value});
+  $('#rfNamed').onchange=e=>upd({named:e.target.checked});
+  let tm; $('#rfQ').oninput=e=>{ clearTimeout(tm); tm=setTimeout(()=>{ NAV.opt=Object.assign({},st,{q:e.target.value}); NAV.propose=false; viewHW($('#view')); const i=$('#rfQ'); i.focus(); i.setSelectionRange(i.value.length,i.value.length); },250); };
+  $('#rfNeed').onclick=()=>{ const need={}; document.querySelectorAll('[data-need]').forEach(i=>need[i.dataset.need]=+i.value||0); go({view:'hw', mode:'res', opt:Object.assign({},st,{need}), propose:true}, false); };
+  if ($('#rfClr')) $('#rfClr').onclick=()=>go({view:'hw', mode:'res', opt:st}, false);
+  $('#rfCsv').onclick=()=>downloadCSV('rezervy.csv', [['Stanice','Slot','Karta','MLFB','Typ','Adresa','HW symbol','Komentář','Stav'], ...list.map(e=>[e.ctx.device?.name||e.ctx.station?.name||'', e.n.slot??'', e.n.name, e.n.mlfb, e.type, e.c.address, e.c.hwSymbol, e.c.hwComment, HWST[e.st].t])]);
+}
+
+function hwChecks(body){
+  const conf = M.hw.ch.filter(e=>e.st==='conflict');
+  const named = M.hw.ch.filter(e=>e.st==='named');
+  const orph = M.hw.orphans;
+  const via = M.hw.ch.filter(e=>e.via);
+  const sec=(t,d,n,html)=>`<div class="card"><h3>${t} <span class="pill ${n?'warn':'ok'}">${n}</span></h3><div class="muted" style="margin-bottom:8px">${d}</div>${n?html:''}</div>`;
+  const tbl=(rows,cols)=>`<div class="tablewrap" style="max-height:420px"><table class="t"><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>${rows}</table></div>`;
+  const orRow=o=>`<tr><td class="mono">${esc(o.a.addr)}</td><td>${esc(o.a.sym)}</td><td>${o.a.refs.map(r=>pinRef(r.block,r.pin)+' '+esc(r.rw)+' <span class="muted">'+esc(M.blocks.get(r.block)?.type||'')+'</span>').join('<br>')}</td><td class="muted">${o.rng?'v rozsahu karty '+esc(o.rng.name):'mimo HW'}</td></tr>`;
+  const orCh = orph.filter(o=>o.p.w==='X'||o.p.w==='W'), orBy = orph.filter(o=>!(o.p.w==='X'||o.p.w==='W'));
+  body.innerHTML += sec('Kanálové adresy použité v CFC, které nejsou v HW', 'Bitové adresy a IW/QW z cross-referencí, pro které v nahraném HW Configu neexistuje kanál (překlep, chybějící karta, nebo HW jiné stanice / nenahraný .cfg).', orCh.length,
+      tbl(orCh.slice(0,1000).map(orRow).join(''), ['Adresa','Symbol','Použito v','Poznámka']))
+    + (orBy.length ? `<div class="card"><details><summary><b>Bytové / dword adresy mimo HW</b> <span class="pill">${orBy.length}</span> <span class="muted">– typicky diagnostika (MOD_*, QC_CHNG) nebo adresy zařízení; jen pro informaci</span></summary><div style="margin-top:8px">${tbl(orBy.slice(0,1000).map(orRow).join(''), ['Adresa','Symbol','Použito v','Poznámka'])}</div></details></div>` : '')
+    + sec('Vícenásobný zápis na výstupní kanál', 'Do jednoho kanálu zapisuje víc bloků/pinů.', conf.length,
+      tbl(conf.map(e=>`<tr><td class="mono">${esc(e.c.address)}</td><td>${esc(e.c.hwSymbol)}</td><td>${hwLink(e.n.id, hwLoc(e,true))}</td><td>${hwRefList(e)}</td></tr>`).join(''), ['Adresa','HW symbol','Karta','Zapisují']))
+    + sec('Pojmenované kanály, které CFC nepoužívá', 'Kanál má v HW symbol, ale v cross-referencích se nečte ani nezapisuje – připravený signál, zapomenutý driver, nebo nevyužitá rezerva.', named.length,
+      tbl(named.slice(0,1500).map(e=>`<tr><td class="mono">${esc(e.c.address)}</td><td>${esc(e.c.hwSymbol)}</td><td class="muted">${esc(e.c.hwComment)}</td><td>${hwLink(e.n.id, hwLoc(e,true))}</td></tr>`).join(''), ['Adresa','HW symbol','Komentář','Karta']))
+    + sec('Kanály použité jen přes byte/word', 'CFC nečte bit/kanál přímo, ale celý byte nebo word (např. W_BO). Kanál je brán jako použitý – ověřte.', via.length,
+      tbl(via.slice(0,1000).map(e=>`<tr><td class="mono">${esc(e.c.address)}</td><td>${esc(e.c.hwSymbol)}</td><td>${hwRefList(e)}</td></tr>`).join(''), ['Adresa','HW symbol','Použito']));
+}
+
+function viewHWNode(v, {n, ctx}){
+  const list = chUnder(n); const s = hwStats(list);
+  const mods=[]; hwWalk(n, m=>{ if ((m.kind==='module'||m.kind==='submodule') && m.processData) mods.push(m); });
+  v.innerHTML = `<div class="pad">${hwCrumb(n, ctx)}
+    <div class="card"><h2>${n.kind==='device'?GI.rio:GI.cpu} ${esc(n.kind==='controller'?n.name.replace(/^CONTROLLER\s*/,''):n.name)} ${n.mlfb?`<span class="pill">${esc(n.mlfb)}</span>`:''} ${n.address!=null?`<span class="pill">${n.bus==='PROFINET'?'PN':'DP'} ${n.address}</span>`:''}</h2>
+      <div class="muted">${esc((n.comments||[]).join(' · '))}</div><div style="margin-top:10px">${statTiles(s)}</div><div style="margin-top:10px">${typeTable(s)}</div></div>
+    <div class="tablewrap"><table class="t"><tr><th>Slot</th><th>Karta</th><th>Typ</th><th>Adresy</th><th>Rezerva</th><th>Kanály</th></tr>
+    ${mods.map(m=>{ const l=M.hw.ch.filter(e=>e.n===m); const ms=hwStats(l); const ad=[...(m.inAddrs||[]).map(a=>'I'+a[0]+(a[2]>1?'–'+(a[0]+a[2]-1):'')), ...(m.outAddrs||[]).map(a=>'Q'+a[0]+(a[2]>1?'–'+(a[0]+a[2]-1):''))].join(', ');
+      return `<tr><td>${m.slot??''}${m.subslot!=null?'.'+m.subslot:''}</td><td>${hwLink(m.id, m.name)}<div class="muted mono" style="font-size:11px">${esc(m.mlfb)}${m.confidence!=='verified'?` · <span title="${esc(m.basis)}">odvozeno</span>`:''}</div></td><td>${esc(m.ioType)}</td><td class="mono nw">${esc(ad)}</td><td><b style="color:var(--accent)">${ms.reserve}</b> / ${ms.all}</td><td>${channelStrip(l)}</td></tr>`; }).join('')}</table></div></div>`;
+}
+function hwCrumb(n, ctx){
+  const p=[hwLink('', 'HW')]; for (const k of ['station','controller','device']) if (ctx[k] && ctx[k]!==n) p.push(hwLink(ctx[k].id, k==='controller'?ctx[k].name.replace(/^CONTROLLER\s*/,''):ctx[k].name));
+  p.push(`<b>${esc(hwNodeTitle(n))}</b>`); return `<div class="crumb">${p.join(' › ')}</div>`;
+}
+function viewHWModule(v, {n, ctx}){
+  const list = M.hw.ch.filter(e=>e.n===n); const s=hwStats(list);
+  v.innerHTML = `<div class="pad">${hwCrumb(n, ctx)}
+    <div class="card"><div class="row" style="align-items:flex-start"><div class="flex1"><h2><span class="pill">${esc(n.ioType)}</span> ${esc(n.name)}</h2>
+      <div class="kv" style="margin-top:6px"><b>MLFB</b><span class="mono">${esc(n.mlfb||'?')}</span><b>Rozpoznání</b><span>${esc(n.basis)}${n.family?' · '+esc(n.family):''}${n.devType?' · '+esc(n.devType):''}</span>
+      <b>Umístění</b><span>${esc(hwLoc({ctx,n}))}</span>${(n.comments||[]).length?`<b>Komentář</b><span>${esc(n.comments.join(' · '))}</span>`:''}</div></div>
+      <div>${statTiles(s)}</div></div></div>
+    <div class="tablewrap"><table class="t"><tr><th>#</th><th>Adresa</th><th>HW symbol</th><th>HW komentář</th><th>Stav</th><th>Použito v CFC</th><th>Typ bloku</th></tr>
+    ${list.map(e=>`<tr><td class="muted">${e.c.index}</td><td class="mono nw"><a class="lnk" data-go="addr" data-id="${esc(e.c.address)}">${esc(e.c.address)}</a></td><td>${esc(e.c.hwSymbol)}</td><td class="muted">${esc(e.c.hwComment)}</td><td>${hwStatusPill(e.st)}</td><td>${hwRefList(e)}</td><td>${[...new Set(e.refs.map(r=>M.blocks.get(r.block)?.type||''))].map(esc).join(', ')}</td></tr>`).join('')}</table></div></div>`;
+}
+
+function downloadCSV(name, rows){
+  const txt = '\uFEFF' + rows.map(r=>r.map(x=>{ x=String(x??''); return /[;"\n]/.test(x) ? '"'+x.replace(/"/g,'""')+'"' : x; }).join(';')).join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+function hwForAddr(addr){ if (!M.hw) return null; return M.hw.byAddr.get(normAddr(addr)) || null; }
+function hwAddrCell(addr){ const e=hwForAddr(addr); if (!e) return M.hw ? '<span class="muted">není v HW</span>' : ''; return `${hwLink(e.n.id, hwLoc(e,true))} <span class="muted">${esc(e.c.hwSymbol)}</span>`; }
+
+'use strict';
+/* ================= Graph layout + SVG renderer with pan/zoom ================= */
+const G = {HEAD:34, PIN:15, GAPX:110, GAPY:18};
+
+function textW(s, px){ return (s||'').length * px; }
+
+function measureNode(n){
+  const ins=n.ins||[], outs=n.outs||[];
+  const rows = Math.max(ins.length, outs.length);
+  n.h = n.small ? 26 + rows*G.PIN : G.HEAD + Math.max(rows,0)*G.PIN + (rows?6:4);
+  const mi = Math.max(0,...ins.map(p=>textW(p,6.4)));
+  const mo = Math.max(0,...outs.map(p=>textW(p,6.4)));
+  n.w = Math.min(360, Math.max(110, textW(n.title,7.4)+22, textW(n.sub,5.9)+18, mi+mo+(mi&&mo?34:20)));
+}
+
+function layoutGraph(nodes, edges, opt={}){
+  const byId = new Map(nodes.map(n=>[n.id,n]));
+  nodes.forEach(measureNode);
+  const succ=new Map(), pred=new Map();
+  nodes.forEach(n=>{succ.set(n.id,new Set()); pred.set(n.id,new Set());});
+  for (const e of edges){ if (e.from===e.to || !byId.has(e.from) || !byId.has(e.to)) continue; succ.get(e.from).add(e.to); pred.get(e.to).add(e.from); }
+  // isolated nodes handled separately
+  const conn = nodes.filter(n=>succ.get(n.id).size||pred.get(n.id).size);
+  const iso = nodes.filter(n=>!(succ.get(n.id).size||pred.get(n.id).size));
+  // break cycles (iterative DFS), ordered by preferred order
+  const order = opt.order || new Map();
+  const ord = n => order.has(n.id) ? order.get(n.id) : 1e9;
+  const sorted = conn.slice().sort((a,b)=>ord(a)-ord(b) || natCmp(a.title,b.title));
+  const state=new Map(); const back=new Set();
+  for (const s of sorted){
+    if (state.get(s.id)) continue;
+    const stack=[[s.id, [...succ.get(s.id)]]]; state.set(s.id,1);
+    while(stack.length){
+      const top=stack[stack.length-1];
+      if (!top[1].length){ state.set(top[0],2); stack.pop(); continue; }
+      const nx = top[1].shift();
+      const st = state.get(nx);
+      if (st===1){ back.add(top[0]+'\u0000'+nx); continue; }
+      if (!st){ state.set(nx,1); stack.push([nx,[...succ.get(nx)]]); }
+    }
+  }
+  const S=new Map(), P=new Map();
+  conn.forEach(n=>{S.set(n.id,[]);P.set(n.id,[]);});
+  for (const [a,set] of succ) for (const b of set){ if (back.has(a+'\u0000'+b)) continue; if(S.has(a)){S.get(a).push(b);P.get(b).push(a);} }
+  // longest path ranks (Kahn)
+  const indeg=new Map(conn.map(n=>[n.id,P.get(n.id).length]));
+  const q=conn.filter(n=>!indeg.get(n.id)).map(n=>n.id); const topo=[];
+  const rank=new Map(conn.map(n=>[n.id,0]));
+  while(q.length){ const a=q.shift(); topo.push(a); for (const b of S.get(a)){ rank.set(b, Math.max(rank.get(b), rank.get(a)+1)); indeg.set(b, indeg.get(b)-1); if(!indeg.get(b)) q.push(b);} }
+  // pull sources right (next to their first successor)
+  for (let i=topo.length-1;i>=0;i--){ const a=topo[i]; const s=S.get(a); if (!P.get(a).length && s.length){ rank.set(a, Math.min(...s.map(b=>rank.get(b)))-1); } }
+  // fixed side placement
+  let minR=Infinity,maxR=-Infinity; for (const r of rank.values()){minR=Math.min(minR,r);maxR=Math.max(maxR,r);}
+  for (const n of conn){ if (n.side==='L') rank.set(n.id, Math.min(rank.get(n.id), minR)); if (n.side==='R') rank.set(n.id, Math.max(rank.get(n.id), maxR)); }
+  for (const n of conn){ if (n.side==='L'){ const s=S.get(n.id); if(s.length) rank.set(n.id, Math.min(...s.map(b=>rank.get(b)))-1);} }
+  minR=Infinity; for (const r of rank.values()) minR=Math.min(minR,r);
+  const layers=[];
+  for (const n of conn){ const r=rank.get(n.id)-minR; n.rank=r; (layers[r]=layers[r]||[]).push(n); }
+  for (let i=0;i<layers.length;i++) layers[i]=layers[i]||[];
+  layers.forEach(L=>L.sort((a,b)=>ord(a)-ord(b) || natCmp(a.title,b.title)));
+  /* ---- dummy nodes: long edges get a lane in every intermediate column (edges from one pin share it) ---- */
+  const dmap=new Map(); const segs=[];  // segment: {u,up,v,vp}
+  const addSeg=(u,up,v,vp)=>{ const sg={u,up,v,vp}; segs.push(sg); (u._dn||(u._dn=[])).push(sg); (v._up||(v._up=[])).push(sg); };
+  conn.forEach(n=>{ n._dn=[]; n._up=[]; });
+  for (const e of edges){
+    e._chain=null; e._back=false;
+    const A=byId.get(e.from), B=byId.get(e.to); if(!A||!B||A.rank==null||B.rank==null) continue;
+    if (B.rank<=A.rank){
+      // feedback: lanes from A's column back to B's column, traversed right-to-left
+      e._back=true; const chain=[]; let prev=null;
+      for (let r=A.rank; r>=B.rank; r--){
+        const key='b\u0000'+e.from+'\u0000'+(e.fp??'')+'\u0000'+e.to+'\u0000'+r;
+        let d=dmap.get(key);
+        if (!d){ d={id:'\u00a7'+key, dummy:true, back:true, w:0, h:4, rank:r, _dn:[], _up:[], _anc:[], _o:ord(A)}; dmap.set(key,d); layers[r].push(d);
+          if (r===A.rank) d._anc.push({n:A, p:e.fp, out:true});
+          if (r===B.rank) d._anc.push({n:B, p:e.tp, out:false});
+          if (prev) addSeg(d, null, prev, null); }
+        chain.push(d); prev=d;
+      }
+      e._chain=chain; continue;
+    }
+    let prev=A, prevPin=e.fp; const chain=[];
+    for (let r=A.rank+1; r<B.rank; r++){
+      const key=e.from+'\u0000'+(e.fp??'')+'\u0000'+r;
+      let d=dmap.get(key);
+      if (!d){ d={id:'§'+key, dummy:true, w:0, h:4, rank:r, _dn:[], _up:[], _o:ord(A)}; dmap.set(key,d); layers[r].push(d); addSeg(prev, prevPin, d, null); }
+      chain.push(d); prev=d; prevPin=null;
+    }
+    e._chain=chain;
+    if (!prev._dn.some(sg=>sg.v===B && sg.vp===e.tp && sg.up===prevPin)) addSeg(prev, prevPin, B, e.tp);
+  }
+  const ordX = n => n.dummy ? n._o : ord(n);
+  layers.forEach(L=>L.sort((a,b)=>ordX(a)-ordX(b)));
+  // crossing reduction: barycenter sweeps on adjacent layers
+  const pos=new Map(); const setPos=L=>L.forEach((n,i)=>pos.set(n,i));
+  layers.forEach(setPos);
+  for (let it=0; it<12; it++){
+    const down = it%2===0;
+    const seq = down ? layers.slice(1) : layers.slice(0,-1).reverse();
+    for (const L of seq){
+      for (const n of L){ const nb = down ? n._up.map(sg=>sg.u) : n._dn.map(sg=>sg.v); n._bc = nb.length ? nb.reduce((s,x)=>s+pos.get(x),0)/nb.length : pos.get(n); }
+      for (const n of L) if (n._anc && n._anc.length){ const a=n._anc[0]; n._bc = a.n._bc + (a.out ? 0.3 : -0.3); }
+      L.sort((a,b)=>a._bc-b._bc || pos.get(a)-pos.get(b)); setPos(L);
+    }
+  }
+  // x
+  let x=0; const colX=[], colW=[];
+  for (const L of layers){ colX.push(x); const w=Math.max(40,...L.filter(n=>!n.dummy).map(n=>n.w)); colW.push(w); L.forEach(n=>n.colW=w); x += w + G.GAPX; }
+  layers.forEach((L,i)=>L.forEach(n=>{ if (n.dummy){ n.x=colX[i]; n.w=colW[i]; } else n.x = colX[i] + (n.side==='L' ? n.colW-n.w : 0); n.cx0=colX[i]; n.cx1=colX[i]+colW[i]; }));
+  // y
+  const gap=(a,b)=> (a.dummy||b.dummy) ? 8 : G.GAPY;
+  layers.forEach(L=>{ let y=0; L.forEach((n,i)=>{ n.y=y; y+=n.h+(i<L.length-1?gap(n,L[i+1]):0); }); });
+  const pinY = (n, pin, isOut) => { if (n.dummy) return n.y+n.h/2; const list = isOut ? n.outs : n.ins; const i = pin==null ? -1 : (list||[]).indexOf(pin); return i<0 ? n.y + n.h/2 : n.y + (n.small?26:G.HEAD) + i*G.PIN + G.PIN/2; };
+  const relax = (L, want) => {
+    // isotonic regression (PAV): keep order, no overlap, minimise distance to desired y
+    let off=0; const items=L.map((n,i)=>{ const d=want(n); const it={n, off, z:(d==null?n.y:d)-off, w:d==null?0.05:(n.dummy?0.6:1)}; off+=n.h+(i<L.length-1?gap(n,L[i+1]):0); return it; });
+    const blocks=[];
+    for (const it of items){
+      blocks.push({sum:it.z*it.w, w:it.w, cnt:1});
+      while(blocks.length>1){ const B=blocks[blocks.length-1], A=blocks[blocks.length-2]; if (A.sum/A.w <= B.sum/B.w) break; A.sum+=B.sum; A.w+=B.w; A.cnt+=B.cnt; blocks.pop(); }
+    }
+    let k=0; for (const B of blocks){ const z=B.sum/B.w; for (let j=0;j<B.cnt;j++,k++){ items[k].n.y = z + items[k].off; } }
+  };
+  const anc = n => n._anc.reduce((s,a)=>s+pinY(a.n,a.p,a.out),0)/n._anc.length - n.h/2;
+  const wantUp = n => { if (n._anc && n._anc.length) return anc(n); if (!n._up.length) return null; return n._up.reduce((s,sg)=>s+pinY(sg.u,sg.up,true)-(pinY(n,sg.vp,false)-n.y),0)/n._up.length; };
+  const wantDn = n => { if (n._anc && n._anc.length) return anc(n); if (!n._dn.length) return null; return n._dn.reduce((s,sg)=>s+pinY(sg.v,sg.vp,false)-(pinY(n,sg.up,true)-n.y),0)/n._dn.length; };
+  const wantBoth = n => { const a=wantUp(n), b=wantDn(n); return a==null ? b : b==null ? a : (a+b)/2; };
+  for (let it=0; it<6; it++){
+    for (let i=1;i<layers.length;i++) relax(layers[i], it<4 ? wantUp : wantBoth);
+    for (let i=layers.length-2;i>=0;i--) relax(layers[i], it<4 ? wantDn : wantBoth);
+  }
+  const allItems = conn.concat([...dmap.values()]);
+  // edge geometry
+  for (const e of edges){
+    const A=byId.get(e.from), B=byId.get(e.to); if (!A||!B||!e._chain||(!e._chain.length&&!e._back)) { e._pts=null; continue; }
+    e._pts = e._chain.map(d=>[d.x, d.x+d.w, d.y+d.h/2]);
+  }
+  let minY=Infinity; allItems.forEach(n=>minY=Math.min(minY,n.y)); if(!isFinite(minY)) minY=0;
+  allItems.forEach(n=>n.y-=minY);
+  for (const e of edges) if (e._pts) e._pts.forEach(p=>p[2]-=minY);
+  let maxY=0, maxX=0; conn.forEach(n=>{maxY=Math.max(maxY,n.y+n.h); maxX=Math.max(maxX,n.x+n.w);});
+  // isolated nodes: grid below
+  if (iso.length){
+    iso.sort((a,b)=>ord(a)-ord(b)||natCmp(a.title,b.title));
+    const W = Math.max(maxX, 1100); let cx=0, cy=maxY+(conn.length?60:0), rowH=0;
+    for (const n of iso){ if (cx>0 && cx+n.w>W){ cx=0; cy+=rowH+G.GAPY; rowH=0; } n.x=cx; n.y=cy; cx+=n.w+30; rowH=Math.max(rowH,n.h); }
+    if (conn.length) opt.isoTop = maxY+30;
+  }
+  return {nodes, edges, byId, pinY, isoTop:opt.isoTop};
+}
+
+const SVGNS='http://www.w3.org/2000/svg';
+const CATCOL = {tech:'var(--c-tech)', drv:'var(--c-drv)', logic:'var(--c-logic)', sfc:'var(--c-sfc)', sfci:'var(--c-sfc)', chart:'var(--c-chart)', addr:'var(--c-addr)', ext:'var(--c-ext)'};
+
+function renderGraph(host, L, opt={}){
+  host.innerHTML='';
+  host.classList.add('gwrap');
+  const svg=document.createElementNS(SVGNS,'svg');
+  const g=document.createElementNS(SVGNS,'g');
+  svg.appendChild(g); host.appendChild(svg);
+  const parts=[];
+  if (L.isoTop!=null) parts.push(`<text x="0" y="${L.isoTop-8}" class="etext">Bez propojení v tomto pohledu:</text>`);
+  // edges
+  L.edges.forEach((e,i)=>{
+    const a=L.byId.get(e.from), b=L.byId.get(e.to); if(!a||!b) return;
+    const x1=a.x+a.w, y1=L.pinY(a,e.fp,true), x2=b.x, y2=L.pinY(b,e.tp,false);
+    let d;
+    const cv=(xa,ya,xb,yb)=>{ const dx=Math.max(20,(xb-xa)/2); return ` C${xa+dx},${ya} ${xb-dx},${yb} ${xb},${yb}`; };
+    // leave/enter the column horizontally so curves only bend inside the gaps between columns
+    const xs = (a.cx1!=null && a.cx1>x1) ? a.cx1 : x1, xe = (b.cx0!=null && b.cx0<x2) ? b.cx0 : x2;
+    const head = `M${x1},${y1}` + (xs>x1 ? ` L${xs},${y1}` : ''), tail = xe<x2 ? ` L${x2},${y2}` : '';
+    if (e._pts && e._back){
+      d=`M${x1},${y1}`; let cx=x1, cy=y1, first=true;
+      for (const [xl,xr,yy] of e._pts){
+        if (first){ const tx=Math.max(x1,xr)+Math.min(50,G.GAPX/2-5); d+=` C${tx},${y1} ${tx},${yy} ${xr},${yy}`; first=false; }
+        else { const dx=Math.max(20,(cx-xr)/2); d+=` C${cx-dx},${cy} ${xr+dx},${yy} ${xr},${yy}`; }
+        d+=` L${xl},${yy}`; cx=xl; cy=yy;
+      }
+      const tx=Math.min(cx,xe)-Math.min(50,G.GAPX/2-5); d+=` C${tx},${cy} ${tx},${y2} ${xe},${y2}`+tail;
+    }
+    else if (e._pts){ d=head; let cx=xs, cy=y1; for (const [xa,xb,yy] of e._pts){ d+=cv(cx,cy,xa,yy)+` L${xb},${yy}`; cx=xb; cy=yy; } d+=cv(cx,cy,xe,y2)+tail; }
+    else if (a===b){ const t=a.y-9, r=x1+22, l=x2-22; d=`M${x1},${y1} C${r},${y1} ${r},${t} ${x1-10},${t} L${x2+10},${t} C${l},${t} ${l},${y2} ${x2},${y2}`; }
+    else if (xe > xs+10){ d=head+cv(xs,y1,xe,y2)+tail; }
+    else { const off=60+Math.min(200,Math.abs(y2-y1)/4); d=`M${x1},${y1} C${x1+off},${y1} ${x2-off},${y2} ${x2},${y2}`; }
+    parts.push(`<path class="edge ${e.cls||''}${e.dead?' dead':''}" d="${d}" data-i="${i}"><title>${esc(e.tip||'')}</title></path>`);
+    if (e.label) parts.push(`<text class="etext" x="${(x1+x2)/2}" y="${(y1+y2)/2-3}" text-anchor="middle">${esc(e.label)}</text>`);
+  });
+  // nodes
+  L.nodes.forEach((n,i)=>{
+    const col = n.color || CATCOL[n.cat] || CATCOL.tech;
+    const cls = ['node', n.cls||'', n.focus?'focus':''].join(' ');
+    let s = `<g class="${cls}" data-n="${i}" transform="translate(${n.x},${n.y})"><title>${esc(n.tip||n.title)}</title>`;
+    s += `<rect class="b" width="${n.w}" height="${n.h}" rx="5"/>`;
+    s += `<rect class="h" width="${n.w}" height="${n.small?22:30}" rx="5" fill="${col}" opacity=".16"/><rect class="h" width="4" height="${n.h}" rx="2" fill="${col}"/>`;
+    s += `<text class="t" x="10" y="15">${esc(clip(n.title, Math.floor((n.w-16)/7.2)))}</text>`;
+    if (!n.small || n.sub) s += `<text class="s" x="10" y="${n.small?20:27}">${esc(clip(n.sub||'', Math.floor((n.w-14)/5.9)))}</text>`;
+    const top = n.small ? 26 : G.HEAD;
+    (n.ins||[]).forEach((p,k)=>{ const y=top+k*G.PIN+G.PIN/2; s+=`<line class="pl" x1="-6" y1="${y}" x2="0" y2="${y}"/><text class="p" x="7" y="${y+3.5}">${esc(p)}</text>`; });
+    (n.outs||[]).forEach((p,k)=>{ const y=top+k*G.PIN+G.PIN/2; s+=`<line class="pl" x1="${n.w}" y1="${y}" x2="${n.w+6}" y2="${y}"/><text class="p" x="${n.w-7}" y="${y+3.5}" text-anchor="end">${esc(p)}</text>`; });
+    s += '</g>';
+    parts.push(s);
+  });
+  g.innerHTML = parts.join('');
+  // index
+  const edgeEls=[...g.querySelectorAll('path.edge')];
+  const nodeEls=[...g.querySelectorAll('g.node')];
+  const nodeIdx=new Map(L.nodes.map((n,i)=>[n.id,i]));
+  const adj=L.nodes.map(()=>[]);
+  edgeEls.forEach(el=>{ const e=L.edges[+el.dataset.i]; const a=nodeIdx.get(e.from), b=nodeIdx.get(e.to); if(a!=null) adj[a].push([el,b]); if(b!=null) adj[b].push([el,a]); });
+  let pinned=null;
+  const hilite=(i)=>{
+    g.querySelectorAll('.hi,.dim').forEach(x=>x.classList.remove('hi','dim'));
+    if (i==null) return;
+    edgeEls.forEach(e=>e.classList.add('dim'));
+    nodeEls.forEach(e=>e.classList.add('dim'));
+    nodeEls[i].classList.remove('dim');
+    for (const [el,o] of adj[i]){ el.classList.remove('dim'); el.classList.add('hi'); if(o!=null){ nodeEls[o].classList.remove('dim'); nodeEls[o].classList.add('hi'); } }
+  };
+  nodeEls.forEach((el,i)=>{
+    el.addEventListener('mouseenter',()=>{ if(pinned==null) hilite(i); });
+    el.addEventListener('mouseleave',()=>{ if(pinned==null) hilite(null); });
+    el.addEventListener('click',ev=>{ ev.stopPropagation(); if (moved) return; pinned = pinned===i ? null : i; hilite(pinned); if (opt.onClick) opt.onClick(L.nodes[i], ev); });
+    el.addEventListener('dblclick',ev=>{ ev.stopPropagation(); if (opt.onDbl) opt.onDbl(L.nodes[i], ev); });
+  });
+  // pan/zoom
+  let tx=0, ty=0, sc=1, moved=false;
+  const apply=()=>g.setAttribute('transform',`translate(${tx},${ty}) scale(${sc})`);
+  const bbox=()=>{ let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity; L.nodes.forEach(n=>{x0=Math.min(x0,n.x-10);y0=Math.min(y0,n.y-10);x1=Math.max(x1,n.x+n.w+10);y1=Math.max(y1,n.y+n.h+10);}); if(L.isoTop!=null) y0=Math.min(y0,L.isoTop-25); return {x0,y0,x1,y1}; };
+  const fit=(maxScale=1)=>{ const r=host.getBoundingClientRect(); const b=bbox(); if(!isFinite(b.x0)) return; sc=Math.min(maxScale,(r.width-40)/(b.x1-b.x0),(r.height-40)/(b.y1-b.y0)); sc=Math.max(sc,0.05); tx=(r.width-(b.x1-b.x0)*sc)/2-b.x0*sc; ty=Math.max(20,(r.height-(b.y1-b.y0)*sc)/2)-b.y0*sc; apply(); };
+  const focusNode=(id)=>{ const i=nodeIdx.get(id); if(i==null) return; const n=L.nodes[i]; const r=host.getBoundingClientRect(); sc=Math.max(sc,0.6); const fitsH=n.h*sc < r.height-40; tx=r.width/2-(n.x+n.w/2)*sc; ty= fitsH ? r.height/2-(n.y+n.h/2)*sc : 20-n.y*sc; apply(); };
+  svg.addEventListener('wheel',ev=>{ ev.preventDefault(); const r=svg.getBoundingClientRect(); const mx=ev.clientX-r.left, my=ev.clientY-r.top; const f=Math.exp(-ev.deltaY*0.0015); const ns=Math.min(4,Math.max(0.03,sc*f)); tx=mx-(mx-tx)*ns/sc; ty=my-(my-ty)*ns/sc; sc=ns; apply(); },{passive:false});
+  let drag=null;
+  svg.addEventListener('mousedown',ev=>{ if(ev.button!==0) return; drag={x:ev.clientX,y:ev.clientY,tx,ty}; moved=false; svg.classList.add('drag'); });
+  window.addEventListener('mousemove',ev=>{ if(!drag) return; const dx=ev.clientX-drag.x, dy=ev.clientY-drag.y; if(Math.abs(dx)+Math.abs(dy)>3) moved=true; tx=drag.tx+dx; ty=drag.ty+dy; apply(); });
+  window.addEventListener('mouseup',()=>{ if(drag){ drag=null; svg.classList.remove('drag'); setTimeout(()=>moved=false,0);} });
+  svg.addEventListener('click',()=>{ if(!moved){ pinned=null; hilite(null);} });
+  const ctl=document.createElement('div'); ctl.className='gctl';
+  ctl.innerHTML='<button title="Přiblížit">+</button><button title="Oddálit">−</button><button title="Celý graf">⤢</button><button title="Uložit jako SVG">⇩</button>';
+  const [bi,bo,bf,bs]=ctl.children;
+  const zoomBy=f=>{ const r=host.getBoundingClientRect(); const mx=r.width/2,my=r.height/2; const ns=Math.min(4,Math.max(0.03,sc*f)); tx=mx-(mx-tx)*ns/sc; ty=my-(my-ty)*ns/sc; sc=ns; apply(); };
+  bi.onclick=()=>zoomBy(1.25); bo.onclick=()=>zoomBy(0.8); bf.onclick=()=>fit(1.5);
+  bs.onclick=()=>exportSVG(L, opt.fileName||'graf');
+  host.appendChild(ctl);
+  if (opt.hint){ const h=document.createElement('div'); h.className='ghint'; h.textContent=opt.hint; host.appendChild(h); }
+  const initView=()=>{ fit(1); if (sc<0.5){ if (opt.focus && nodeIdx.has(opt.focus)) { sc=0.75; focusNode(opt.focus); } else { let hub=-1, best=-1; adj.forEach((l,i)=>{ if(l.length>best){best=l.length;hub=i;} }); sc=0.6; if (hub>=0) focusNode(L.nodes[hub].id); else { const b=bbox(); tx=20-b.x0*sc; ty=20-b.y0*sc; apply(); } } } };
+  requestAnimationFrame(initView);
+  return {fit, focusNode, hilite: id=>{ const i=nodeIdx.get(id); pinned=i; hilite(i); }};
+}
+
+function exportSVG(L, name){
+  const host=document.querySelector('.gwrap svg g'); if(!host) return;
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity; L.nodes.forEach(n=>{x0=Math.min(x0,n.x-10);y0=Math.min(y0,n.y-10);x1=Math.max(x1,n.x+n.w+10);y1=Math.max(y1,n.y+n.h+10);});
+  const cs=getComputedStyle(document.documentElement);
+  const vars=['--edge','--edge-hi','--line','--node','--text','--muted','--panel2','--c-tech','--c-drv','--c-logic','--c-sfc','--c-chart','--c-addr','--c-ext','--accent'];
+  let css=':root{'+vars.map(v=>v+':'+cs.getPropertyValue(v)).join(';')+'}';
+  css+=`.edge{fill:none;stroke:var(--edge);stroke-width:1.2}.edge.dead{stroke-dasharray:5 3}.edge.sfc{stroke:var(--c-sfc);stroke-dasharray:2 3}.edge.addr{stroke:var(--c-addr)}
+  .node rect.b{fill:var(--node);stroke:var(--line)}.node text{fill:var(--text);font:11px Segoe UI,Arial,sans-serif}.node text.t{font-weight:600;font-size:12px}.node text.s{fill:var(--muted);font-size:10px}.node text.p{font:10.5px Consolas,monospace}.node line.pl{stroke:var(--muted)}.node.focus rect.b{stroke:var(--accent);stroke-width:2.5}.node.ext rect.b{stroke-dasharray:4 3;fill:var(--panel2)}.etext{fill:var(--muted);font:10px Arial}`;
+  const clone=host.cloneNode(true); clone.removeAttribute('transform'); clone.querySelectorAll('.hi,.dim').forEach(x=>x.classList.remove('hi','dim'));
+  const svg=`<svg xmlns="${SVGNS}" viewBox="${x0} ${y0} ${x1-x0} ${y1-y0}" width="${x1-x0}" height="${y1-y0}"><style>${css}</style><rect x="${x0}" y="${y0}" width="${x1-x0}" height="${y1-y0}" fill="${cs.getPropertyValue('--bg')}"/>${clone.outerHTML}</svg>`;
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'})); a.download=name.replace(/[\\/:*?"<>|]+/g,'_')+'.svg'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+
+'use strict';
+/* ================= UI ================= */
+let M = null;               // model
+const TEXTS = {};           // kind -> {text, fileName}
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clip = (s,n) => { s=String(s||''); return s.length>n ? s.slice(0,Math.max(1,n-1))+'…' : s; };
+const icon = (k, big) => `<img class="ico${big?' big':''}" src="${ICONS[k]}" alt="">`;
+
+/* ---------- helpers on model ---------- */
+const chartOf = b => b.chart ? M.charts.get(b.chart) : null;
+function chartShort(path){ const {chain} = splitChartPath(path||''); return chain.join('\\'); }
+function folderOf(path){ return splitChartPath(path||'').folder; }
+function blockTitle(b){ return b.name || chartShort(b.id); }
+function blockFull(b){ return b.chart ? chartShort(b.chart)+'\\'+b.name : chartShort(b.id); }
+function catOf(b){
+  if (!b) return 'ext';
+  if (b.kind==='sfc') return 'sfc';
+  if (b.kind==='sfci') return 'sfci';
+  if (b.kind==='chart') return 'chart';
+  const t=b.type||'';
+  if (/^(Pcs7|FbAn|FbDi|FbDo|FbAo|MOD_|CH_|PA_|OB_|SUBNET|RACK|PO_UPD|DREP|PADP|DPAY|IM_|PS_|CPU_|PROFI|PN_|PNIO|W_BO|BO_W|DW_BO|BO_DW|W_DW)/i.test(t)) return 'drv';
+  if (/^(AND|OR|XOR|NOT|NAND|NOR|And\d|Or\d|R_TRIG|F_TRIG|RS|SR|SEL_|SEL|CMP_|ADD|SUB|MUL|DIV|ABS|MOVE|Add\d|Sub\d*|Mul\d*|Div\d*|MAX|MIN|LIM|ABS_|NEG|SQRT|EXP|LN|SIN|COS|TAN|B_|I_|R_|DI_|DW_|Event|Timer|TON|TOF|TP|CTU|CTD|Counter|Max|Min|Lim|Ge|Gt|Le|Lt|Eq|Ne|Swi|SWI)/.test(t)) return 'logic';
+  return 'tech';
+}
+const CATNAME = {tech:'technologické bloky', drv:'drivery / diagnostika', logic:'logika / matematika', sfc:'SFC chart', sfci:'SFC instance', chart:'vnořené CFC', addr:'adresa I/Q/M/DB', ext:'blok v jiném CFC'};
+function runInfo(b){
+  if (!b.run.length) return '';
+  const cyc = b.run.filter(r=>!/OB10[0-2]$/.test(r.ob));
+  const pick = cyc.length ? cyc : b.run;
+  return pick.map(r=>`${r.ob} <span class="muted">${esc(r.obName.replace(/^.*?\(/,'(').replace(/^[^(]*$/,''))}</span>${r.group?` · ${esc(r.group)}`:''} · #${r.n}`).join('<br>');
+}
+function runOrder(b){ const r=b.run.find(r=>!/OB10[0-2]$/.test(r.ob)) || b.run[0]; return r ? r.pos : 1e9; }
+function pinUsed(p){ return p.edges.length || p.addrs.length || p.sfc.length; }
+
+/* ---------- links ---------- */
+function bl(id, text, cls){ const b=M.blocks.get(id); const t = text || (b ? blockTitle(b) : id); return `<a class="lnk ${cls||''}" data-go="block" data-id="${esc(id)}" title="${esc(id)}">${esc(t)}</a>`; }
+function cl(path, text){ return `<a class="lnk" data-go="chart" data-id="${esc(path)}" title="${esc(path)}">${esc(text||chartShort(path))}</a>`; }
+function al(addr){ return `<a class="lnk mono" data-go="addr" data-id="${esc(addr)}">${esc(addr)}</a>`; }
+function pinRef(blockId, pin, ownChart){
+  const b = M.blocks.get(blockId); if (!b) return esc(blockId+'.'+pin);
+  const chartTxt = (b.chart && b.chart!==ownChart) ? `<span class="muted">${esc(chartShort(b.chart))}\\</span>` : '';
+  return `${chartTxt}${bl(blockId)}<span class="mono">.${esc(pin)}</span>`;
+}
+
+/* ---------- navigation ---------- */
+let NAV = {view:'files'};
+const HIST=[]; let HPOS=-1;
+function go(state, push=true){
+  NAV = Object.assign({}, state);
+  if (push){ HIST.splice(HPOS+1); HIST.push(NAV); HPOS=HIST.length-1; }
+  $('#back').disabled = HPOS<=0; $('#fwd').disabled = HPOS>=HIST.length-1;
+  renderView();
+}
+function goBack(){ if (HPOS>0){ HPOS--; go(HIST[HPOS], false); } }
+function goFwd(){ if (HPOS<HIST.length-1){ HPOS++; go(HIST[HPOS], false); } }
+
+const TABS = [
+  ['files','Soubory'],
+  ['block','Blok'],
+  ['chart','CFC / hierarchie'],
+  ['neigh','Okolí (graf)'],
+  ['sfc','SFC kontrola'],
+  ['addr','Adresy'],
+  ['hw','HW / rezervy'],
+  ['run','Run sequence'],
+  ['search','Hledání'],
+];
+function renderTabs(){
+  $('#mtabs').innerHTML = TABS.map(([k,l])=>`<button data-tab="${k}" class="${NAV.view===k?'on':''}">${l}</button>`).join('');
+}
+const LAST = {};
+function renderView(){
+  renderTabs();
+  const v = $('#view'); v.scrollTop = 0;
+  if (!M && NAV.view!=='files'){ NAV.view='files'; renderTabs(); }
+  LAST[NAV.view] = NAV;
+  ({files:viewFiles, block:viewBlock, chart:viewChart, neigh:viewNeigh, sfc:viewSFC, addr:viewAddr, run:viewRun, search:viewSearch, hw:viewHW})[NAV.view](v);
+  markSideSel();
+}
+function needFiles(kinds, what){
+  const miss = kinds.filter(k=>!M || !M.files[k]);
+  if (!miss.length) return '';
+  return `<div class="need">Pro ${what} nahrajte export:<br><br>${miss.map(k=>`<div>${icon(k)} <b>${esc(FILE_KINDS[k].pcs7)}</b></div>`).join('')}</div>`;
+}
+
+/* ================= Files view ================= */
+function viewFiles(v){
+  const cards = Object.entries(FILE_KINDS).map(([k,f])=>{
+    const ld = M && M.files[k];
+    return `<div class="fcard ${ld?'on':''}">${icon(k,true)}<div><h4>${esc(f.pcs7)}</h4><p>${esc(f.gives)}</p>
+      <div class="st">${ld ? `<span class="pill ok">načteno</span> <span class="muted">${esc(ld.fileName)} · ${ld.rows.toLocaleString('cs')} ${ld.unit||'řádků'}</span>` : '<span class="pill">nenačteno</span>'}</div></div></div>`;
+  }).join('');
+  const stats = M ? `<div class="card"><div class="row">
+      <div class="stat"><b>${M.charts.size.toLocaleString('cs')}</b><span>CFC/SFC chartů</span></div>
+      <div class="stat"><b>${M.blocks.size.toLocaleString('cs')}</b><span>bloků</span></div>
+      <div class="stat"><b>${M.edges.length.toLocaleString('cs')}</b><span>propojení</span></div>
+      <div class="stat"><b>${M.addrs.size.toLocaleString('cs')}</b><span>adres</span></div>
+      <div class="stat"><b>${M.sfcTypes.size + M.sfcCharts.size}</b><span>SFC typů / chartů</span></div>
+      <div class="flex1"></div><button id="clearAll">Vymazat data</button></div></div>` : '';
+  v.innerHTML = `<div class="pad">
+    <div id="drop">${Object.keys(FILE_KINDS).map(k=>icon(k,true)).join(' ')}<br><br>
+      <b>Přetáhněte sem CSV exporty z PCS7</b> (Options → Chart Reference Data → File → Export…) a případně HW Config <span class="mono">.cfg</span> nebo
+      <button class="primary" id="pick">Vybrat soubory…</button>
+      <div class="muted" style="margin-top:8px">Typ exportu se pozná automaticky podle hlavičky – na názvu souboru nezáleží. Stačí jen některé – podle toho se zpřístupní funkce. Data zůstávají jen v prohlížeči.</div>
+    </div>
+    ${stats}
+    <div class="fgrid">${cards}</div>
+    <div class="card" style="margin-top:14px"><h3>Co která funkce potřebuje</h3>
+      <table class="t"><tr><th>Funkce</th><th>Potřebné exporty</th><th>Volitelně obohatí</th></tr>
+      <tr><td>Strom hierarchie, hledání bloků/typů</td><td>${icon('bt')} nebo ${icon('ic')}</td><td>${icon('rs')} komentáře, OB</td></tr>
+      <tr><td>Graf CFC, okolí bloku, propojení</td><td>${icon('ic')}</td><td>${icon('bt')} nenapojené bloky, ${icon('cr')} adresy, ${icon('sx')} SFC</td></tr>
+      <tr><td>SFC kontrola napojení (typy)</td><td>${icon('ac')} (nebo ${icon('sx')}) + ${icon('ic')}</td><td>${icon('cr')} ${icon('bt')}</td></tr>
+      <tr><td>SFC kontrola (SFC charty)</td><td>${icon('sx')} + ${icon('ic')}</td><td>${icon('cr')}</td></tr>
+      <tr><td>Adresy, vícenásobný zápis</td><td>${icon('cr')}</td><td></td></tr>
+      <tr><td>Pořadí běhu, OB</td><td>${icon('rs')}</td><td></td></tr>
+      <tr><td>HW: karty, kanály, hledač rezerv, kontroly HW ↔ CFC</td><td>${icon('hw')} + ${icon('cr')}</td><td>${icon('ic')} ${icon('bt')} (proklik do grafů)</td></tr></table></div>
+  </div>`;
+  $('#pick').onclick = ()=>$('#fileInput').click();
+  const d=$('#drop');
+  d.ondragover=e=>{e.preventDefault(); d.classList.add('over');};
+  d.ondragleave=()=>d.classList.remove('over');
+  if ($('#clearAll')) $('#clearAll').onclick=()=>{ for(const k in TEXTS) delete TEXTS[k]; M=null; renderChips(); renderSide(); go({view:'files'}); };
+}
+
+async function loadFiles(list){
+  const unknown=[];
+  for (const f of list){
+    const buf = await f.arrayBuffer();
+    const text = decodeBuffer(buf);
+    const k = detectKind(text);
+    if (!k){ unknown.push(f.name); continue; }
+    if (k==='hw') TEXTS.hw = (TEXTS.hw||[]).filter(x=>x.fileName!==f.name).concat({text, fileName:f.name});
+    else TEXTS[k] = {text, fileName:f.name};
+  }
+  if (unknown.length) toast('Nerozpoznaný formát: '+unknown.join(', '));
+  if (!Object.keys(TEXTS).length) return;
+  toast('Zpracovávám…');
+  await new Promise(r=>setTimeout(r,20));
+  const t0=performance.now();
+  M = buildModel(TEXTS);
+  toast(`Načteno za ${Math.round(performance.now()-t0)} ms`);
+  renderChips(); renderSide();
+  if (NAV.view==='files') renderView(); else renderView();
+}
+
+function renderChips(){
+  $('#fileChips').innerHTML = Object.entries(FILE_KINDS).map(([k,f])=>`<span class="chip ${M&&M.files[k]?'':'off'}" title="${esc(f.pcs7)}${M&&M.files[k]?' – '+esc(M.files[k].fileName):' – nenačteno'}" data-tab="files">${icon(k)}</span>`).join('');
+}
+let toastT=null;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.style.display='block'; clearTimeout(toastT); toastT=setTimeout(()=>t.style.display='none',2600); }
+
+/* ================= Sidebar ================= */
+let SIDE = {tab:'hier', filter:'', open:new Set([''])};
+function renderSide(){
+  $('#stabs').innerHTML = [['hier','Hierarchie'],['types','Typy'],['sfc','SFC'],['ob','OB'],['hw','HW']].map(([k,l])=>`<button data-stab="${k}" class="${SIDE.tab===k?'on':''}">${l}</button>`).join('');
+  const s = $('#side');
+  if (!M){ s.innerHTML = '<div class="empty">Nejdřív nahrajte exporty.</div>'; return; }
+  const f = SIDE.filter.trim().toLowerCase();
+  if (SIDE.tab==='hier') s.innerHTML = f ? sideFilterHier(f) : sideFolder(M.folderRoot, 0);
+  else if (SIDE.tab==='types') s.innerHTML = sideTypes(f);
+  else if (SIDE.tab==='sfc') s.innerHTML = sideSFC(f);
+  else if (SIDE.tab==='hw') s.innerHTML = sideHW(f);
+  else s.innerHTML = sideOB(f);
+  markSideSel();
+}
+const GI = {
+  folder:'<svg class="gico" viewBox="0 0 16 16"><path d="M1 4h5l1.5 1.5H15V13H1z" fill="#e8c35a" stroke="#a07c20"/></svg>',
+  cfc:'<svg class="gico" viewBox="0 0 16 16"><rect x="2" y="1.5" width="12" height="13" fill="#fff" stroke="#2f5fa8"/><rect x="4" y="4" width="4" height="3" fill="#2f6db5"/><rect x="8.5" y="9" width="4" height="3" fill="#2f6db5"/><path d="M8 5.5h2v5h-1.5" fill="none" stroke="#2f6db5"/></svg>',
+  sfc:'<svg class="gico" viewBox="0 0 16 16"><rect x="2" y="1.5" width="12" height="13" fill="#fff" stroke="#8a3fb8"/><rect x="5.5" y="3" width="5" height="3" fill="#8a3fb8"/><path d="M8 6v4M6 8h4" stroke="#8a3fb8"/><rect x="5.5" y="10" width="5" height="3" fill="none" stroke="#8a3fb8"/></svg>',
+  blk:c=>`<svg class="gico" viewBox="0 0 16 16"><rect x="3" y="2" width="10" height="12" rx="1.5" fill="none" stroke="${CATCOL[c]||CATCOL.tech}" stroke-width="1.6"/><path d="M1 6h2M1 10h2M13 8h2" stroke="${CATCOL[c]||CATCOL.tech}" stroke-width="1.4"/></svg>`,
+  rio:'<svg class="gico" viewBox="0 0 16 16"><rect x="1" y="3" width="14" height="10" fill="#dfe6ee" stroke="#5a6b80"/><rect x="2.5" y="4.5" width="2" height="7" fill="#2e8540"/><rect x="5.5" y="4.5" width="2" height="7" fill="#2f6db5"/><rect x="8.5" y="4.5" width="2" height="7" fill="#2f6db5"/><rect x="11.5" y="4.5" width="2" height="7" fill="#b06d00"/></svg>',
+  cpu:'<svg class="gico" viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="12" fill="#dfe6ee" stroke="#5a6b80"/><rect x="3" y="4" width="4" height="8" fill="#0f8a8a"/><rect x="8" y="4" width="2" height="8" fill="#7b8494"/><rect x="11" y="4" width="2" height="8" fill="#7b8494"/></svg>',
+  bus:'<svg class="gico" viewBox="0 0 16 16"><path d="M1 8h14M4 8v-4M8 8v4M12 8v-4" stroke="#8a3fb8" stroke-width="2" fill="none"/></svg>',
+  type:'<svg class="gico" viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="2" fill="none" stroke="currentColor"/><text x="8" y="11.5" font-size="8" text-anchor="middle" fill="currentColor">T</text></svg>',
+};
+function sideFolder(f, depth){
+  const open = SIDE.open.has('F:'+f.path) || f.path==='';
+  let h = '';
+  if (f.path!==''){
+    h += `<div class="tn" data-tn="folder" data-id="${esc(f.path)}"><span class="tw" data-tog="F:${esc(f.path)}">${open?'▾':'▸'}</span>${GI.folder}<span>${esc(f.name)}</span><span class="cnt">${f.nCharts}</span></div>`;
+  } else {
+    h += `<div class="tn" data-tn="folder" data-id=""><span class="tw"></span>${GI.folder}<b>Celý projekt</b><span class="cnt">${f.nCharts}</span></div>`;
+  }
+  if (!open) return h;
+  h += '<div class="tc">';
+  for (const sub of [...f.folders.values()].sort((a,b)=>natCmp(a.name,b.name))) h += sideFolder(sub, depth+1);
+  for (const cp of f.charts) h += sideChart(cp);
+  h += '</div>';
+  return h;
+}
+function sideChart(cp){
+  const c = M.charts.get(cp); const open = SIDE.open.has('C:'+cp);
+  const n = c.blocks.size;
+  let h = `<div class="tn" data-tn="chart" data-id="${esc(cp)}"><span class="tw" ${n?`data-tog="C:${esc(cp)}"`:''}>${n?(open?'▾':'▸'):''}</span>${c.isSfc?GI.sfc:GI.cfc}<span>${esc(c.name)}</span><span class="cnt">${n||''}</span></div>`;
+  if (open && n){
+    h += '<div class="tc">';
+    const ids = [...c.blocks].map(id=>M.blocks.get(id)).sort((a,b)=>(a.kind==='chart'?0:1)-(b.kind==='chart'?0:1) || natCmp(a.name,b.name));
+    for (const b of ids){
+      if (b.kind==='chart' && M.charts.has(b.id)) h += sideChart(b.id);
+      else h += `<div class="tn" data-tn="block" data-id="${esc(b.id)}"><span class="tw"></span>${GI.blk(catOf(b))}<span>${esc(b.name)}</span> <span class="ty">${esc(b.type)}</span></div>`;
+    }
+    h += '</div>';
+  }
+  return h;
+}
+function matchTokens(hay, f){ const toks=f.split(/\s+/).filter(Boolean); return toks.every(t=>hay.includes(t)); }
+function sideFilterHier(f){
+  const charts=[], blocks=[];
+  for (const c of M.charts.values()) if (matchTokens(c.path.toLowerCase(), f)) charts.push(c);
+  for (const b of M.blocks.values()) if (b.kind!=='chart' && matchTokens((b.id+' '+b.type+' '+b.comment).toLowerCase(), f)) blocks.push(b);
+  charts.sort((a,b)=>natCmp(a.path,b.path)); blocks.sort((a,b)=>natCmp(a.id,b.id));
+  let h = `<div class="muted" style="padding:4px 6px">${charts.length} chartů, ${blocks.length} bloků</div>`;
+  h += charts.slice(0,150).map(c=>`<div class="tn" data-tn="chart" data-id="${esc(c.path)}" title="${esc(c.path)}"><span class="tw"></span>${c.isSfc?GI.sfc:GI.cfc}<span>${esc(chartShort(c.path))}</span><span class="cnt">${esc(clip(c.folder,28))}</span></div>`).join('');
+  h += blocks.slice(0,400).map(b=>`<div class="tn" data-tn="block" data-id="${esc(b.id)}" title="${esc(b.id)}"><span class="tw"></span>${GI.blk(catOf(b))}<span>${esc(b.name||chartShort(b.id))}</span> <span class="ty">${esc(b.type)}</span><span class="cnt">${esc(clip(b.chart?chartShort(b.chart):'',22))}</span></div>`).join('');
+  if (blocks.length>400) h+='<div class="muted" style="padding:6px">… zúžte hledání</div>';
+  return h;
+}
+function sideTypes(f){
+  const types=new Map();
+  for (const b of M.blocks.values()){ if (!b.type || b.kind==='chart') continue; (types.get(b.type)||types.set(b.type,[]).get(b.type)).push(b); }
+  let list=[...types.entries()].sort((a,b)=>natCmp(a[0],b[0]));
+  if (f) list=list.filter(([t,bs])=>t.toLowerCase().includes(f) || bs.some(b=>(b.fb||'').toLowerCase()===f));
+  return list.map(([t,bs])=>{
+    const open=SIDE.open.has('T:'+t);
+    let h=`<div class="tn" data-tog="T:${esc(t)}"><span class="tw">${open?'▾':'▸'}</span>${GI.blk(catOf(bs[0]))}<span>${esc(t)}</span> <span class="ty">${esc(bs.find(b=>b.fb)?.fb||'')}</span><span class="cnt">${bs.length}</span></div>`;
+    if (open){ h+='<div class="tc">'+bs.sort((a,b)=>natCmp(a.id,b.id)).slice(0,1000).map(b=>`<div class="tn" data-tn="block" data-id="${esc(b.id)}" title="${esc(b.id)}"><span class="tw"></span><span>${esc(b.name||chartShort(b.id))}</span><span class="cnt">${esc(clip(b.chart?chartShort(b.chart):'',26))}</span></div>`).join('')+'</div>'; }
+    return h;
+  }).join('') || '<div class="empty">Nic</div>';
+}
+function sfcList(){
+  const out=[];
+  for (const t of M.sfcTypes.values()){
+    const inst=[...M.blocks.values()].filter(b=>b.type===t.name);
+    out.push({kind:'type', id:t.name, name:t.name, inst, ios:t.ios.size});
+  }
+  for (const b of M.blocks.values()) if (b.kind==='sfc' && !M.sfcTypes.has(b.type)) out.push({kind:'chart', id:b.id, name:chartShort(b.id), path:b.id, rows:(M.sfcCharts.get(b.id)||{rows:[]}).rows.length});
+  return out.sort((a,b)=>natCmp(a.name,b.name));
+}
+function sideSFC(f){
+  const L=sfcList().filter(x=>!f || (x.name+' '+(x.path||'')+' '+(x.inst||[]).map(b=>b.id).join(' ')).toLowerCase().includes(f));
+  return L.map(x=>{
+    if (x.kind==='type') return `<div class="tn" data-tn="sfctype" data-id="${esc(x.id)}"><span class="tw"></span>${GI.sfc}<span>${esc(x.name)}</span> <span class="ty">typ</span><span class="cnt">${x.inst.length} inst.</span></div>`+
+       x.inst.map(b=>`<div class="tn tc" data-tn="sfci" data-id="${esc(b.id)}" title="${esc(b.id)}"><span class="tw"></span>${GI.blk('sfci')}<span>${esc(chartShort(b.chart))}\\${esc(b.name)}</span></div>`).join('');
+    return `<div class="tn" data-tn="sfci" data-id="${esc(x.id)}" title="${esc(x.path)}"><span class="tw"></span>${GI.sfc}<span>${esc(x.name)}</span> <span class="ty">SFC chart</span><span class="cnt">${esc(clip(folderOf(x.path),24))}</span></div>`;
+  }).join('') || '<div class="empty">Žádné SFC. Nahrajte '+icon('ac')+' nebo '+icon('sx')+'</div>';
+}
+function sideOB(f){
+  if (!M.files.rs) return needFiles(['rs'],'seznam OB');
+  return [...M.obs.values()].sort((a,b)=>natCmp(a.ob,b.ob)).filter(o=>!f||(o.ob+' '+o.name).toLowerCase().includes(f))
+   .map(o=>`<div class="tn" data-tn="ob" data-id="${esc(o.ob)}"><span class="tw"></span><span class="mono">${esc(o.ob)}</span> <span class="ty">${esc(o.name)}</span><span class="cnt">${o.count}</span></div>`).join('');
+}
+function markSideSel(){
+  document.querySelectorAll('#side .tn.sel').forEach(e=>e.classList.remove('sel'));
+  const id = NAV.id; if (id==null) return;
+  const typ = {block:'block', chart:NAV.folder?'folder':'chart', sfc:NAV.inst?'sfci':'sfctype', run:'ob', hw:'hw'}[NAV.view];
+  if (!typ) return;
+  for (const el of document.querySelectorAll(`#side .tn[data-tn="${typ}"]`)) if (el.dataset.id===id){ el.classList.add('sel'); }
+}
+
+/* ================= Block view ================= */
+function viewBlock(v){
+  if (!M) return;
+  const b = NAV.id && M.blocks.get(NAV.id);
+  if (!b){ v.innerHTML = `<div class="empty">Vyberte blok ve stromu vlevo, v grafu nebo přes hledání.</div>`; return; }
+  const c = chartOf(b);
+  const pins=[...b.pins.values()].sort((x,y)=>(x.dir==='out')-(y.dir==='out') || natCmp(x.name,y.name));
+  const nIn = pins.filter(p=>p.dir!=='out' && pinUsed(p)).length, nOut = pins.filter(p=>p.dir==='out' && pinUsed(p)).length;
+  const nAddr = pins.reduce((s,p)=>s+p.addrs.length,0);
+  const isSfc = b.kind==='sfci' || b.kind==='sfc';
+  v.innerHTML = `<div class="fullv"><div class="pad" style="padding-bottom:6px">
+    ${crumb(b.chart || b.id, b)}
+    <div class="card"><div class="row" style="align-items:flex-start">
+      <div class="flex1"><h2>${GI.blk(catOf(b))} ${esc(blockTitle(b))} <span class="pill">${esc(b.type||'?')}</span> ${b.fb?`<span class="pill">${esc(b.fb)}</span>`:''}</h2>
+      <div class="muted">${esc(b.comment)}</div>
+      <div class="kv" style="margin-top:8px"><b>Umístění</b><span class="mono">${esc(b.id)}</span>
+        ${b.run.length?`<b>Běh</b><span>${runInfo(b)}</span>`:''}
+        <b>Napojení</b><span>${nIn} vstupů · ${nOut} výstupů · ${nAddr} adres</span></div></div>
+      <div class="row" style="flex-direction:column;align-items:stretch;gap:6px">
+        ${b.chart?`<button data-go="chart" data-id="${esc(b.chart)}" data-focus="${esc(b.id)}">Zobrazit v CFC</button>`:''}
+        ${M.charts.has(b.id)?`<button data-go="chart" data-id="${esc(b.id)}">Otevřít vnořený chart</button>`:''}
+        <button data-go="neigh" data-id="${esc(b.id)}">Okolí (graf)</button>
+        ${isSfc?`<button class="primary" data-go="sfci" data-id="${esc(b.id)}">SFC kontrola</button>`:''}
+      </div></div></div></div>
+    <div id="bgraph" style="height:420px;min-height:420px;margin:0 18px;border:1px solid var(--line);border-radius:8px"></div>
+    <div class="pad"><h3 style="margin:4px 0 8px">Piny (${pins.length})</h3>
+      ${pins.length ? `<div class="tablewrap"><table class="t"><tr><th>Pin</th><th>Směr</th><th>Komentář</th><th>Propojeno s</th><th>Adresa</th><th>SFC přístup</th></tr>
+      ${pins.map(p=>`<tr><td class="mono nw">${esc(p.name)}</td><td>${p.dir==='out'?'OUT':p.dir==='in'?'IN':'?'}</td><td class="muted">${esc(p.comment)}</td>
+        <td>${p.edges.map(e=> e.a===b.id && e.ap===p.name ? '→ '+pinRef(e.b,e.bp,b.chart) : '← '+pinRef(e.a,e.ap,b.chart)).join('<br>')}</td>
+        <td>${p.addrs.map(a=>`${al(a.addr)} ${a.sym?`<span class="muted">${esc(a.sym)}</span>`:''} <span class="pill">${esc(a.rw)}</span>${M.hw?`<div style="font-size:11px">${hwAddrCell(a.addr)}</div>`:''}`).join('<br>')}</td>
+        <td>${sfcUseSummary(p.sfc)}</td></tr>`).join('')}</table></div>`
+      : '<div class="muted">Blok nemá žádné známé napojené piny (nebo chybí export '+icon('ic')+').</div>'}
+    </div></div>`;
+  const L = buildNeigh(b.id, 1, 'both', true, 80);
+  renderGraph($('#bgraph'), layoutGraph(L.nodes, L.edges, {}), {focus:b.id, fileName:blockTitle(b), hint:'kolečko = zoom · táhnout = posun · klik = zvýraznit · dvojklik = otevřít',
+    onDbl:n=>openNode(n)});
+}
+function sfcUseSummary(list){
+  if (!list.length) return '';
+  const by = new Map(); for (const r of list){ const k=r.sfc; (by.get(k)||by.set(k,[]).get(k)).push(r); }
+  return [...by.entries()].map(([s,rs])=>`<details class="uses"><summary>${M.blocks.has(s)?bl(s, chartShort(s)):esc(s)} <span class="pill">${[...new Set(rs.map(r=>r.rw))].join('/')}</span> ${rs.length}×</summary>${rs.map(r=>`<div>${esc(r.seq)}: ${esc(r.addr)} <span class="muted">(${esc(r.kind)})</span></div>`).join('')}</details>`).join('');
+}
+function crumb(chartPath, b){
+  const {folder, chain} = splitChartPath(chartPath||'');
+  const parts=[]; let acc='';
+  parts.push(`<a data-go="folder" data-id="">Projekt</a>`);
+  if (folder) for (const seg of folder.split('\\')){ acc = acc?acc+'\\'+seg:seg; parts.push(`<a data-go="folder" data-id="${esc(acc)}">${esc(seg)}</a>`); }
+  let cp = folder;
+  chain.forEach((seg,i)=>{ cp = i===0 ? (folder? folder+SEP2+seg : seg) : cp+'\\'+seg; if (b && b.id===cp && !b.chart) parts.push(`<b>${esc(seg)}</b>`); else parts.push(`<a data-go="chart" data-id="${esc(cp)}">${GI.cfc} ${esc(seg)}</a>`); });
+  if (b && b.chart) parts.push(`<b>${esc(b.name)}</b>`);
+  return `<div class="crumb">${parts.join(' › ')}</div>`;
+}
+function folderCrumb(fp){
+  const parts=[`<a data-go="folder" data-id="">Projekt</a>`]; let acc='';
+  if (fp) for (const seg of fp.split('\\')){ acc=acc?acc+'\\'+seg:seg; parts.push(acc===fp?`<b>${esc(seg)}</b>`:`<a data-go="folder" data-id="${esc(acc)}">${esc(seg)}</a>`); }
+  return `<div class="crumb" style="margin:0">${GI.folder} ${parts.join(' › ')}</div>`;
+}
+function openNode(n){
+  if (n.ref && n.ref.type==='block') go({view:'block', id:n.ref.id});
+  else if (n.ref && n.ref.type==='chart') go({view:'chart', id:n.ref.id});
+  else if (n.ref && n.ref.type==='folder') go({view:'chart', id:n.ref.id, folder:true});
+  else if (n.ref && n.ref.type==='addr') go({view:'addr', q:n.ref.id});
+}
+
+/* ---- neighbourhood graph ---- */
+const PALETTE=['#2f6db5','#2e8540','#b05a00','#8a3fb8','#0f8a8a','#c0392b','#6b7a00','#b8327a','#4a5bd4','#7a5c3a'];
+function buildNeigh(rootId, depth, dir, withAddr, maxN, colorByChart){
+  const seen=new Map([[rootId,0]]); let frontier=[rootId]; const E=[];
+  const eset=new Set();
+  for (let d=1; d<=depth && frontier.length; d++){
+    const next=[];
+    for (const id of frontier){
+      const b=M.blocks.get(id); if(!b) continue;
+      const es=[]; if (dir!=='up') es.push(...b.outE.map(e=>[e,e.b])); if (dir!=='down') es.push(...b.inE.map(e=>[e,e.a]));
+      for (const [e,o] of es){
+        if (!seen.has(o)){ if (seen.size>=maxN) continue; seen.set(o,d); next.push(o); }
+        eset.add(e);
+      }
+    }
+    frontier=next;
+  }
+  // also edges among seen nodes
+  for (const id of seen.keys()){ const b=M.blocks.get(id); if(!b) continue; for (const e of b.outE) if (seen.has(e.b)) eset.add(e); }
+  const pinsIn=new Map(), pinsOut=new Map();
+  const addP=(m,id,p)=>{ (m.get(id)||m.set(id,new Set()).get(id)).add(p); };
+  const edges=[];
+  for (const e of eset){ addP(pinsOut,e.a,e.ap); addP(pinsIn,e.b,e.bp); edges.push({from:e.a, fp:e.ap, to:e.b, tp:e.bp, dead:e.dead, tip:`${blockFull(M.blocks.get(e.a))}.${e.ap} → ${blockFull(M.blocks.get(e.b))}.${e.bp}${e.dead?' (implicit dead time)':''}`}); }
+  const extra=[];
+  if (withAddr){
+    const root=M.blocks.get(rootId);
+    for (const p of root.pins.values()){
+      for (const a of p.addrs){
+        const out = a.rw.includes('W') && !a.rw.includes('R');
+        const nid='addr:'+a.addr+(out?':W':':R');
+        if (!extra.some(n=>n.id===nid)) extra.push({id:nid, title:a.addr, sub:a.sym||a.dt, cat:'addr', cls:'addr', small:true, ins:[], outs:[], side: out?'R':'L', ref:{type:'addr', id:a.addr}});
+        if (out){ addP(pinsOut,rootId,p.name); edges.push({from:rootId, fp:p.name, to:nid, tp:null, cls:'addr'}); }
+        else { addP(pinsIn,rootId,p.name); edges.push({from:nid, fp:null, to:rootId, tp:p.name, cls:'addr'}); }
+      }
+      const bySfc=new Map(); for (const r of p.sfc){ (bySfc.get(r.sfc)||bySfc.set(r.sfc,new Set()).get(r.sfc)).add(r.rw); }
+      for (const [s,rws] of bySfc){
+        const w = rws.has('W');
+        const nid='sfc:'+s+(w?':W':':R');
+        if (!extra.some(n=>n.id===nid)) extra.push({id:nid, title:chartShort(s), sub:'SFC '+(w?'zapisuje':'čte'), cat:'sfc', small:true, ins:[], outs:[], side:w?'L':'R', ref:M.blocks.has(s)?{type:'block',id:s}:null});
+        if (w){ addP(pinsIn,rootId,p.name); edges.push({from:nid, fp:null, to:rootId, tp:p.name, cls:'sfc'}); }
+        else { addP(pinsOut,rootId,p.name); edges.push({from:rootId, fp:p.name, to:nid, tp:null, cls:'sfc'}); }
+      }
+    }
+  }
+  const charts=[...new Set([...seen.keys()].map(id=>M.blocks.get(id)?.chart||id))];
+  const chartColor=new Map(charts.map((c,i)=>[c,PALETTE[i%PALETTE.length]]));
+  const root=M.blocks.get(rootId);
+  const nodes=[...seen.keys()].map(id=>{
+    const b=M.blocks.get(id);
+    const sameChart = b.chart===root.chart;
+    return {id, title:blockTitle(b), sub:(sameChart?'':chartShort(b.chart||'')+' · ')+(b.type||''), cat:catOf(b),
+      color: colorByChart ? chartColor.get(b.chart||id) : null,
+      ins:[...(pinsIn.get(id)||[])].sort(natCmp), outs:[...(pinsOut.get(id)||[])].sort(natCmp), focus:id===rootId,
+      cls: (!colorByChart && !sameChart) ? 'ext' : '', tip:b.id+(b.comment?'\n'+b.comment:''), ref:{type:'block', id}};
+  });
+  return {nodes:nodes.concat(extra), edges, chartColor};
+}
+
+function viewNeigh(v){
+  if (!M) return;
+  if (!M.files.ic){ v.innerHTML=needFiles(['ic'],'graf okolí'); return; }
+  const b = NAV.id && M.blocks.get(NAV.id);
+  if (!b){ v.innerHTML='<div class="empty">Vyberte blok (strom, hledání) a pak „Okolí“.</div>'; return; }
+  const st = Object.assign({depth:2, dir:'both', addr:true, color:true, max:150}, NAV.opt||{});
+  v.innerHTML = `<div class="fullv"><div class="toolbar"><b>${bl(b.id)}</b> <span class="muted">${esc(b.type)} · ${esc(chartShort(b.chart||''))}</span>
+    <span class="flex1"></span>
+    <label>Hloubka <select id="nDepth">${[1,2,3,4,5].map(d=>`<option ${d==st.depth?'selected':''}>${d}</option>`).join('')}</select></label>
+    <span class="seg" id="nDir">${[['up','← odkud'],['both','obousměrně'],['down','kam →']].map(([k,l])=>`<button data-d="${k}" class="${st.dir===k?'on':''}">${l}</button>`).join('')}</span>
+    <label><input type="checkbox" id="nAddr" ${st.addr?'checked':''}> adresy/SFC</label>
+    <label><input type="checkbox" id="nCol" ${st.color?'checked':''}> barvy podle CFC</label>
+    <label>max uzlů <select id="nMax">${[50,150,300,600].map(d=>`<option ${d==st.max?'selected':''}>${d}</option>`).join('')}</select></label></div>
+    <div id="nlegend" class="toolbar legend"></div><div id="ngraph" class="gwrap"></div></div>`;
+  const L = buildNeigh(b.id, st.depth, st.dir, st.addr, st.max, st.color);
+  $('#nlegend').innerHTML = st.color ? [...L.chartColor.entries()].slice(0,30).map(([c,col])=>`<span><i style="background:${col}"></i>${cl(c)}</span>`).join('') : legendCats();
+  renderGraph($('#ngraph'), layoutGraph(L.nodes, L.edges, {}), {focus:b.id, fileName:'okoli_'+blockTitle(b), hint:`${L.nodes.length} uzlů · ${L.edges.length} spojení · dvojklik = přejít na blok`,
+    onDbl:n=>{ if(n.ref&&n.ref.type==='block') go({view:'neigh', id:n.ref.id, opt:st}); else openNode(n);} });
+  const upd = patch => go({view:'neigh', id:b.id, opt:Object.assign({},st,patch)});
+  $('#nDepth').onchange=e=>upd({depth:+e.target.value});
+  $('#nMax').onchange=e=>upd({max:+e.target.value});
+  $('#nAddr').onchange=e=>upd({addr:e.target.checked});
+  $('#nCol').onchange=e=>upd({color:e.target.checked});
+  $('#nDir').onclick=e=>{ const d=e.target.dataset.d; if(d) upd({dir:d}); };
+}
+function legendCats(){ return Object.entries(CATNAME).map(([k,l])=>`<span><i style="background:${CATCOL[k]}"></i>${l}</span>`).join('') + '<span>- - - implicit dead time</span>'; }
+
+/* ================= Chart view ================= */
+function viewChart(v){
+  if (!M) return;
+  if (NAV.folder || NAV.id==null || !M.charts.has(NAV.id)) return viewFolder(v, NAV.folder ? (NAV.id||'') : '');
+  const c = M.charts.get(NAV.id);
+  const st = Object.assign({addr:true, ext:true, sfc:true, iso:true}, NAV.opt||{});
+  const B = new Set(c.blocks);
+  const nodes=new Map(), edges=[];
+  const pinsIn=new Map(), pinsOut=new Map();
+  const addP=(m,id,p)=>{ (m.get(id)||m.set(id,new Set()).get(id)).add(p); };
+  let nExtIn=0, nExtOut=0;
+  for (const id of B){
+    const b=M.blocks.get(id);
+    for (const e of b.outE){
+      if (B.has(e.b)){ addP(pinsOut,id,e.ap); addP(pinsIn,e.b,e.bp); edges.push({from:id,fp:e.ap,to:e.b,tp:e.bp,dead:e.dead,tip:`${b.name}.${e.ap} → ${M.blocks.get(e.b).name}.${e.bp}`}); }
+      else { nExtOut++; if (!st.ext) continue; const xid='xo:'+e.b; addP(pinsOut,id,e.ap); addP(pinsIn,xid,e.bp); edges.push({from:id,fp:e.ap,to:xid,tp:e.bp,dead:e.dead,tip:`→ ${e.b}.${e.bp}`}); if(!nodes.has(xid)) nodes.set(xid,{id:xid, ext:e.b, side:'R'}); }
+    }
+    for (const e of b.inE){
+      if (B.has(e.a)) continue;
+      nExtIn++; if (!st.ext) continue;
+      const xid='xi:'+e.a; addP(pinsIn,id,e.bp); addP(pinsOut,xid,e.ap); edges.push({from:xid,fp:e.ap,to:id,tp:e.bp,dead:e.dead,tip:`${e.a}.${e.ap} →`}); if(!nodes.has(xid)) nodes.set(xid,{id:xid, ext:e.a, side:'L'});
+    }
+    for (const p of b.pins.values()){
+      if (st.addr) for (const a of p.addrs){
+        const w = a.rw.includes('W') && !a.rw.includes('R');
+        const xid='ad:'+a.addr+(w?':W':':R');
+        if (!nodes.has(xid)) nodes.set(xid,{id:xid, addr:a, side:w?'R':'L'});
+        if (w){ addP(pinsOut,id,p.name); edges.push({from:id,fp:p.name,to:xid,tp:null,cls:'addr'}); }
+        else { addP(pinsIn,id,p.name); edges.push({from:xid,fp:null,to:id,tp:p.name,cls:'addr'}); }
+      }
+      if (st.sfc){
+        const by=new Map(); for (const r of p.sfc) (by.get(r.sfc)||by.set(r.sfc,new Set()).get(r.sfc)).add(r.rw);
+        for (const [s,rws] of by){ const w=rws.has('W'); const xid='sf:'+s+(w?':W':':R'); if(!nodes.has(xid)) nodes.set(xid,{id:xid, sfc:s, side:w?'L':'R'});
+          if (w){ addP(pinsIn,id,p.name); edges.push({from:xid,fp:null,to:id,tp:p.name,cls:'sfc'}); } else { addP(pinsOut,id,p.name); edges.push({from:id,fp:p.name,to:xid,tp:null,cls:'sfc'}); } }
+      }
+    }
+  }
+  const order=new Map();
+  const N=[];
+  for (const id of B){ const b=M.blocks.get(id); order.set(id, runOrder(b));
+    if (!st.iso && !pinsIn.has(id) && !pinsOut.has(id)) continue;
+    N.push({id, title:b.name, sub:b.type + (b.comment?' · '+b.comment:''), cat:catOf(b), ins:[...(pinsIn.get(id)||[])].sort(natCmp), outs:[...(pinsOut.get(id)||[])].sort(natCmp), tip:b.id+'\n'+b.type+(b.comment?'\n'+b.comment:''), ref:{type:'block',id}, focus:id===NAV.focus}); }
+  for (const x of nodes.values()){
+    if (x.ext){ const xb=M.blocks.get(x.ext); N.push({id:x.id, title:blockTitle(xb), sub:chartShort(xb.chart||xb.id), cat:'ext', cls:'ext', side:x.side, ins:[...(pinsIn.get(x.id)||[])].sort(natCmp), outs:[...(pinsOut.get(x.id)||[])].sort(natCmp), tip:xb.id, ref:{type:'block',id:xb.id}}); }
+    else if (x.addr){ N.push({id:x.id, title:x.addr.addr, sub:x.addr.sym||x.addr.dt, cat:'addr', cls:'addr', small:true, side:x.side, ins:[], outs:[], ref:{type:'addr', id:x.addr.addr}}); }
+    else if (x.sfc){ N.push({id:x.id, title:chartShort(x.sfc), sub:'SFC '+(x.side==='L'?'zapisuje':'čte'), cat:'sfc', cls:'ext', small:true, side:x.side, ins:[], outs:[], ref:M.blocks.has(x.sfc)?{type:'block',id:x.sfc}:null}); }
+  }
+  v.innerHTML = `<div class="fullv"><div class="toolbar">${crumb(c.path).replace('class="crumb"','class="crumb" style="margin:0"')}
+     <span class="flex1"></span>
+     <label><input type="checkbox" id="cExt" ${st.ext?'checked':''}> externí (jiné CFC)</label>
+     <label><input type="checkbox" id="cAddr" ${st.addr?'checked':''}> adresy</label>
+     <label><input type="checkbox" id="cSfc" ${st.sfc?'checked':''}> SFC</label>
+     <label><input type="checkbox" id="cIso" ${st.iso?'checked':''}> nenapojené bloky</label></div>
+     <div class="toolbar legend">${legendCats()}<span class="flex1"></span><span>${B.size} bloků · ${edges.filter(e=>!String(e.from).includes(':')&&!String(e.to).includes(':')).length} interních spojení · ${nExtIn} vstupů z jiných CFC · ${nExtOut} výstupů do jiných CFC</span></div>
+     <div id="cgraph" class="gwrap"></div></div>`;
+  if (!M.files.ic) $('#cgraph').insertAdjacentHTML('beforebegin', `<div class="toolbar" style="color:var(--warn)">Bez exportu ${icon('ic')} Block interconnections nejsou vidět propojení.</div>`);
+  const upd = patch => go({view:'chart', id:c.path, opt:Object.assign({},st,patch)});
+  $('#cExt').onchange=e=>upd({ext:e.target.checked}); $('#cAddr').onchange=e=>upd({addr:e.target.checked}); $('#cSfc').onchange=e=>upd({sfc:e.target.checked}); $('#cIso').onchange=e=>upd({iso:e.target.checked});
+  renderGraph($('#cgraph'), layoutGraph(N, edges, {order}), {focus:NAV.focus, fileName:c.name, hint:'Vlevo vstupy z jiných CFC/adres, vpravo výstupy. Dvojklik: blok → detail, externí → jeho CFC.',
+    onDbl:n=>{ if (n.cls==='ext' && n.ref && n.ref.type==='block'){ const xb=M.blocks.get(n.ref.id); if (xb.chart) go({view:'chart', id:xb.chart, focus:xb.id}); else go({view:'block', id:xb.id}); } else openNode(n); } });
+}
+
+function topChartOf(b){ let cp = b.chart || b.id; let c=M.charts.get(cp); while(c && c.parent){ c=M.charts.get(c.parent); } return c ? c.path : cp; }
+function viewFolder(v, fpath){
+  const f = M.folderIndex.get(fpath) || M.folderRoot;
+  const key = (b)=>{
+    const tp = topChartOf(b); const fo = folderOf(tp);
+    if (fo===f.path) return 'c:'+tp;
+    if (f.path==='' ) return 'f:'+fo.split('\\')[0];
+    if (fo.startsWith(f.path+'\\')) return 'f:'+f.path+'\\'+fo.slice(f.path.length+1).split('\\')[0];
+    return 'x:'+(fo.split('\\')[0]||tp);
+  };
+  const agg=new Map(); const nodeSet=new Map();
+  for (const sub of f.folders.values()) nodeSet.set('f:'+sub.path,0);
+  for (const cp of f.charts) nodeSet.set('c:'+cp,0);
+  if (M.files.ic) for (const e of M.edges){
+    const ka=key(M.blocks.get(e.a)), kb=key(M.blocks.get(e.b));
+    if (ka===kb) continue;
+    if (ka.startsWith('x:') && kb.startsWith('x:')) continue;
+    const k=ka+'\u0000'+kb; agg.set(k,(agg.get(k)||0)+1);
+    if (!nodeSet.has(ka)) nodeSet.set(ka,0); if (!nodeSet.has(kb)) nodeSet.set(kb,0);
+  }
+  const N=[...nodeSet.keys()].map(k=>{
+    const t=k[0], id=k.slice(2);
+    if (t==='f'){ const sf=M.folderIndex.get(id); return {id:k, title:id.split('\\').pop(), sub:`složka · ${sf?sf.nCharts:'?'} chartů`, cat:'chart', ins:[], outs:[], ref:{type:'folder',id}}; }
+    if (t==='c'){ const c=M.charts.get(id); return {id:k, title:c.name, sub:(c.isSfc?'SFC':'CFC')+` · ${c.blocks.size} bloků`, cat:c.isSfc?'sfc':'tech', ins:[], outs:[], ref:{type:'chart',id}}; }
+    return {id:k, title:id, sub:'mimo tuto složku', cat:'ext', cls:'ext', ins:[], outs:[], ref:{type:'folder',id}};
+  });
+  const pair=new Map();
+  for (const [k,n] of agg){ const [a,b]=k.split('\u0000'); const key=a<b?a+'\u0000'+b:b+'\u0000'+a; const x=pair.get(key)||{a,b,ab:0,ba:0}; if (x.a===a) x.ab+=n; else x.ba+=n; pair.set(key,x); }
+  const nm=k=>k.slice(2).split('\\').pop();
+  const E=[...pair.values()].map(x=>{ const fwd=x.ab>=x.ba; return {from:fwd?x.a:x.b, fp:null, to:fwd?x.b:x.a, tp:null, label:String(x.ab+x.ba), tip:`${nm(x.a)} → ${nm(x.b)}: ${x.ab}\n${nm(x.b)} → ${nm(x.a)}: ${x.ba}`}; });
+  v.innerHTML = `<div class="fullv"><div class="toolbar">${folderCrumb(f.path)}<span class="flex1"></span><span class="muted">Přehled: složky a CFC charty v této úrovni, čísla = počet propojení. Dvojklik = otevřít.</span></div>
+    <div id="fgraph" class="gwrap"></div></div>`;
+  if (!N.length){ $('#fgraph').innerHTML='<div class="empty">Prázdné</div>'; return; }
+  renderGraph($('#fgraph'), layoutGraph(N, E, {}), {fileName:'prehled_'+(f.name||'projekt'), onDbl:n=>openNode(n), hint:'dvojklik na složku = zanořit, na chart = otevřít CFC'});
+}
+
+/* ================= SFC view ================= */
+function viewSFC(v){
+  if (!M) return;
+  if (!M.files.ac && !M.files.sx){ v.innerHTML=needFiles(['ac','sx','ic'],'kontrolu SFC'); return; }
+  if (!NAV.id){
+    const L=sfcList();
+    v.innerHTML = `<div class="pad"><h3>SFC typy a SFC charty</h3><div class="sfcgrid">${L.map(x=> x.kind==='type'
+      ? `<div class="sfccard" data-go="sfctype" data-id="${esc(x.id)}">${GI.sfc} <b>${esc(x.name)}</b> <span class="pill">typ</span><div class="muted">${x.ios} používaných I/O · ${x.inst.length} instancí</div>${x.inst.map(b=>`<div class="mono" style="font-size:11px">${esc(chartShort(b.chart))}\\${esc(b.name)}</div>`).join('')}</div>`
+      : `<div class="sfccard" data-go="sfci" data-id="${esc(x.id)}">${GI.sfc} <b>${esc(x.name)}</b> <span class="pill">SFC chart</span><div class="muted">${esc(folderOf(x.path))}</div><div class="muted">${x.rows} přístupů do CFC</div></div>`).join('')}</div></div>`;
+    return;
+  }
+  if (NAV.inst){
+    const b=M.blocks.get(NAV.id);
+    if (b && b.kind==='sfci') return viewSFCInstance(v, b, M.sfcTypes.get(b.type));
+    if (b && b.kind==='sfc') return viewSFCChart(v, b);
+  }
+  const t=M.sfcTypes.get(NAV.id); if (!t){ v.innerHTML='<div class="empty">Nenalezeno</div>'; return; }
+  const inst=[...M.blocks.values()].filter(b=>b.type===t.name);
+  if (inst.length===1) return viewSFCInstance(v, inst[0], t);
+  return viewSFCInstance(v, null, t, inst);
+}
+
+function ioStatus(io, b){
+  const p = b ? b.pins.get(io.base) : null;
+  const conn = p ? (p.edges.length + p.addrs.length + p.sfc.length) : 0;
+  const sec = io.section, as = io.assign;
+  if (conn) return {k:'ok', t:'napojeno', p};
+  if (as==='Timer') return {k:'info', t:'interní timer', p};
+  if (as==='(Standard interface)' && sec==='OUT') return {k:'info', t:'std. výstup', p};
+  if (as==='Parameter' || as==='Setpoint') return {k:'warn', t:'nenapojeno – hodnota parametru?', p};
+  if (sec==='OUT') return {k:'warn', t:'zapisuje se, ale nikam nevede', p};
+  return {k:'err', t:'používá se, ale NENÍ napojeno', p};
+}
+function viewSFCInstance(v, b, t, instList){
+  const ios=[...t.ios.values()].sort((x,y)=>natCmp(x.section,y.section)||natCmp(x.base,y.base));
+  const flt = NAV.flt || 'all';
+  const rows = ios.map(io=>({io, st:ioStatus(io,b)}));
+  const extra = b ? [...b.pins.values()].filter(p=>!t.ios.has(p.name) && pinUsed(p)) : [];
+  const cnt = k => rows.filter(r=>r.st.k===k).length;
+  const show = rows.filter(r=> flt==='all' || (flt==='prob' ? (r.st.k==='err'||r.st.k==='warn') : flt==='in' ? r.io.section!=='OUT' : r.io.section==='OUT'));
+  const partner = (st)=>{ const p=st.p; if(!p) return ''; return [
+      ...p.edges.map(e=> e.a===b.id ? '→ '+pinRef(e.b,e.bp,b.chart) : '← '+pinRef(e.a,e.ap,b.chart)),
+      ...p.addrs.map(a=>`${al(a.addr)} <span class="muted">${esc(a.sym)}</span>`),
+      ...p.sfc.map(r=>`SFC ${esc(chartShort(r.sfc))} ${esc(r.rw)}`)].join('<br>'); };
+  const usesHtml = io => { const st=io.uses.filter(u=>u.kind==='Step').length, tr=io.uses.filter(u=>u.kind==='Transition').length, sc=io.uses.length-st-tr;
+    return `<details class="uses"><summary>${io.uses.length}× <span class="muted">(${st} kroků, ${tr} tranzic${sc?`, ${sc} start/jiné`:''})</span></summary>${io.uses.map(u=>`<div>${esc(u.seq)} · ${esc(u.addr)} <span class="muted">${esc(u.kind)} ${esc(u.rw)}${u.val?' = '+esc(u.val):''}</span></div>`).join('')}</details>`; };
+  v.innerHTML = `<div class="pad">
+    ${b ? crumb(b.chart, b) : ''}
+    <div class="card"><div class="row"><div class="flex1"><h2>${GI.sfc} ${esc(t.name)} ${b?`<span class="muted" style="font-weight:400">instance</span> ${bl(b.id, chartShort(b.chart)+'\\'+b.name)}`:''}</h2>
+      <div class="muted">${t.fromAccess?`Zdroj: ${icon('ac')} Accesses in SFC types`:`Zdroj: ${icon('sx')} Cross-References SFC → Chart Element (méně detailů)`}${M.files.ic?'':` · <span style="color:var(--err)">chybí ${icon('ic')} Block interconnections – nelze ověřit napojení</span>`}</div>
+      ${instList ? `<div style="margin-top:8px">Vyberte instanci: ${instList.map(x=>`<a class="lnk" data-go="sfci" data-id="${esc(x.id)}">${esc(chartShort(x.chart))}\\${esc(x.name)}</a>`).join(' · ') || '<i>žádná instance v nahraných datech</i>'}</div>`:''}</div>
+      ${b?`<div class="row"><button data-go="chart" data-id="${esc(b.chart)}" data-focus="${esc(b.id)}">CFC</button><button data-go="neigh" data-id="${esc(b.id)}">Okolí</button></div>`:''}</div>
+      <div class="row" style="margin-top:10px">
+        <div class="stat err"><b>${cnt('err')}</b><span>použito, nenapojeno</span></div>
+        <div class="stat warn"><b>${cnt('warn')}</b><span>výstup/parametr bez spojení</span></div>
+        <div class="stat ok"><b>${cnt('ok')}</b><span>napojeno</span></div>
+        <div class="stat"><b>${cnt('info')}</b><span>interní (timery, std.)</span></div>
+        ${b?`<div class="stat"><b>${extra.length}</b><span>napojeno, ale v sekvenci nepoužito</span></div>`:''}
+      </div></div>
+    <div class="row" style="margin-bottom:8px"><span class="seg" id="sfFlt">${[['all','Vše'],['prob','Jen problémy'],['in','IN'],['out','OUT']].map(([k,l])=>`<button data-f="${k}" class="${flt===k?'on':''}">${l}</button>`).join('')}</span>
+      <span class="muted">Status vychází z exportů – „napojeno“ = propojení na blok, adresu nebo přístup z jiného SFC.</span></div>
+    <div class="tablewrap"><table class="t"><tr><th></th><th>I/O</th><th>Sekce</th><th>Přiřazení</th><th>Charakteristika</th><th>Použití v sekvenci</th><th>${b?'Napojení v CFC':'Status'}</th></tr>
+      ${show.map(({io,st})=>`<tr><td><span class="pill ${st.k==='info'?'':st.k}">${esc(st.t)}</span></td><td class="mono nw">${esc(io.name)}</td><td>${esc(io.section)}</td><td>${esc(io.assign)}</td><td>${esc(io.charact)}</td><td>${usesHtml(io)}</td><td>${b?partner(st):''}</td></tr>`).join('')}
+    </table></div>
+    ${extra.length ? `<h3 style="margin:16px 0 8px">Napojené piny instance, které sekvence nepoužívá</h3><div class="muted" style="margin-bottom:6px">Mohou to být čistě informační výstupy, nebo I/O používané jen v rozhraní/OS.</div>
+      <div class="tablewrap"><table class="t"><tr><th>Pin</th><th>Směr</th><th>Napojení</th></tr>${extra.map(p=>`<tr><td class="mono">${esc(p.name)}</td><td>${p.dir.toUpperCase()}</td><td>${partner({p})}</td></tr>`).join('')}</table></div>`:''}
+  </div>`;
+  $('#sfFlt').onclick=e=>{ const f=e.target.dataset.f; if(f) go(Object.assign({},NAV,{flt:f}), false); };
+}
+
+function downstream(blockId, pin, rw){
+  const b=M.blocks.get(blockId); if(!b) return {k:'err', t:'blok nenalezen', d:''};
+  if (rw==='W'){
+    const outs=b.outE.length, ad=[...b.pins.values()].reduce((s,p)=>s+p.addrs.filter(a=>a.rw.includes('W')).length,0);
+    const sfcR=[...b.pins.values()].reduce((s,p)=>s+p.sfc.filter(r=>r.rw==='R').length,0);
+    const list=[...b.outE.slice(0,4).map(e=>'→ '+pinRef(e.b,e.bp,b.chart)), ...[...b.pins.values()].flatMap(p=>p.addrs.filter(a=>a.rw.includes('W')).map(a=>'→ '+al(a.addr)))].slice(0,5).join('<br>');
+    if (outs||ad) return {k:'ok', t:`výstupy bloku dál: ${outs} spojení${ad?`, ${ad} adres`:''}`, d:list+(outs>4?`<br><span class="muted">… a další</span>`:'')};
+    if (sfcR) return {k:'warn', t:'výstup čte jen SFC', d:''};
+    if (b.kind==='chart' || b.kind==='sfci') return {k:'warn', t:'nelze ověřit (vnořený chart)', d:''};
+    return {k:'err', t:'blok nemá napojené výstupy', d:''};
+  } else {
+    const ins=b.inE.length, ad=[...b.pins.values()].reduce((s,p)=>s+p.addrs.filter(a=>!a.rw.includes('W')||a.rw.includes('R')).length,0);
+    const list=[...b.inE.slice(0,4).map(e=>'← '+pinRef(e.a,e.ap,b.chart)), ...[...b.pins.values()].flatMap(p=>p.addrs.filter(a=>a.rw.includes('R')).map(a=>'← '+al(a.addr)))].slice(0,5).join('<br>');
+    if (ins||ad) return {k:'ok', t:`vstupy bloku z: ${ins} spojení${ad?`, ${ad} adres`:''}`, d:list+(ins>4?`<br><span class="muted">… a další</span>`:'')};
+    return {k:'warn', t:'blok nemá napojené vstupy (hodnota pevná / z OS?)', d:''};
+  }
+}
+function viewSFCChart(v, sb){
+  const sc = M.sfcCharts.get(sb.id) || {rows:[]};
+  const by=new Map();
+  for (const r of sc.rows){ const k=r.block+'\u0000'+r.pin; let x=by.get(k); if(!x){ x={block:r.block, pin:r.pin, rws:new Set(), uses:[]}; by.set(k,x);} x.rws.add(r.rw); x.uses.push(r); }
+  const items=[...by.values()].map(x=>{ const rw=x.rws.has('W')?'W':'R'; return Object.assign(x,{rw, st:downstream(x.block,x.pin,rw)}); })
+    .sort((a,b)=>natCmp(a.rw,b.rw)||natCmp(a.block,b.block)||natCmp(a.pin,b.pin));
+  const flt = NAV.flt || 'all';
+  const show = items.filter(x=>flt==='all'||(flt==='prob'?x.st.k!=='ok':flt==='in'?x.rw==='R':x.rw==='W'));
+  const own=[...sb.pins.values()].filter(pinUsed);
+  const cnt=k=>items.filter(x=>x.st.k===k).length;
+  v.innerHTML = `<div class="pad">${crumb(sb.id, sb)}
+    <div class="card"><div class="row"><div class="flex1"><h2>${GI.sfc} ${esc(chartShort(sb.id))} <span class="pill">SFC chart</span></h2>
+      <div class="muted">${esc(sb.id)}</div>${sb.run.length?`<div class="kv" style="margin-top:6px"><b>Běh</b><span>${runInfo(sb)}</span></div>`:''}</div>
+      <button data-go="neigh" data-id="${esc(sb.id)}">Okolí</button></div>
+      <div class="row" style="margin-top:10px">
+        <div class="stat"><b>${items.filter(x=>x.rw==='W').length}</b><span>pinů zapisuje</span></div>
+        <div class="stat"><b>${items.filter(x=>x.rw==='R').length}</b><span>pinů čte</span></div>
+        <div class="stat ok"><b>${cnt('ok')}</b><span>dál napojeno</span></div>
+        <div class="stat warn"><b>${cnt('warn')}</b><span>k ověření</span></div>
+        <div class="stat err"><b>${cnt('err')}</b><span>nikam nevede</span></div></div></div>
+    ${own.length?`<div class="card"><h3>Rozhraní SFC chartu</h3>${own.map(p=>`<div><span class="mono">${esc(p.name)}</span> ${p.edges.map(e=>e.a===sb.id?'→ '+pinRef(e.b,e.bp):'← '+pinRef(e.a,e.ap)).join(', ')}</div>`).join('')}</div>`:''}
+    ${sc.rows.length ? `<div class="row" style="margin-bottom:8px"><span class="seg" id="sfFlt">${[['all','Vše'],['prob','Jen k ověření'],['in','Čte (R)'],['out','Zapisuje (W)']].map(([k,l])=>`<button data-f="${k}" class="${flt===k?'on':''}">${l}</button>`).join('')}</span>
+      <span class="muted">Pro zápis (W) se kontroluje, zda blok, do kterého SFC píše, má dál napojené výstupy. Pro čtení (R), zda má blok napojené vstupy.</span></div>
+    <div class="tablewrap"><table class="t"><tr><th>Element v CFC</th><th>R/W</th><th>Kde v SFC</th><th>Status</th><th>Dál v CFC</th></tr>
+      ${show.map(x=>`<tr><td>${pinRef(x.block,x.pin)}<div class="muted" style="font-size:11px">${esc(M.blocks.get(x.block)?.type||'')}</div></td><td>${x.rw}</td>
+        <td><details class="uses"><summary>${x.uses.length}×</summary>${x.uses.map(u=>`<div>${esc(u.seq)} · ${esc(u.addr)} <span class="muted">${esc(u.kind)}</span></div>`).join('')}</details></td>
+        <td><span class="pill ${x.st.k}">${esc(x.st.t)}</span></td><td>${x.st.d}</td></tr>`).join('')}</table></div>`
+      : needFiles(['sx'],'přístupy SFC chartu do CFC')}
+  </div>`;
+  const f=$('#sfFlt'); if (f) f.onclick=e=>{ const k=e.target.dataset.f; if(k) go(Object.assign({},NAV,{flt:k}), false); };
+}
+
+/* ================= Address view ================= */
+function addrKey(a){ const m=a.match(/^([A-Z]+)\s*(\d+)?(?:\.(?:[A-Z]*)(\d+))?(?:\.(\d+))?/i); if(!m) return [a,0,0,0]; return [m[1].toUpperCase(), +(m[2]||0), +(m[3]||0), +(m[4]||0)]; }
+function areaOf(a){ const t=addrKey(a)[0]; if (t.startsWith('DB')) return 'DB'; if (t.startsWith('PI')) return 'PI'; if (t.startsWith('PQ')) return 'PQ'; return t[0]; }
+function viewAddr(v){
+  if (!M) return;
+  if (!M.files.cr){ v.innerHTML=needFiles(['cr'],'přehled adres'); return; }
+  const st=Object.assign({q:'', area:'', multi:false, nosym:false}, NAV.opt||{}); if (NAV.q!=null){ st.q=NAV.q; }
+  v.innerHTML = `<div class="fullv"><div class="toolbar"><input type="search" id="aq" placeholder="adresa, symbol, chart, blok… (např. I12 nebo Pump01)" value="${esc(st.q)}" style="width:340px">
+     <select id="aArea"><option value="">všechny oblasti</option>${['I','Q','M','DB','PI','PQ'].map(x=>`<option ${st.area===x?'selected':''}>${x}</option>`).join('')}</select>
+     <label><input type="checkbox" id="aMulti" ${st.multi?'checked':''}> jen vícenásobný zápis (W)</label>
+     <label><input type="checkbox" id="aNoSym" ${st.nosym?'checked':''}> jen bez symbolu</label><span class="flex1"></span><span id="aCnt" class="muted"></span></div>
+     <div class="pad" style="padding-top:8px" id="aBody"></div></div>`;
+  const draw=()=>{
+    const q=st.q.trim().toLowerCase();
+    let list=[...M.addrs.values()];
+    if (st.area) list=list.filter(a=>areaOf(a.addr)===st.area);
+    if (st.multi) list=list.filter(a=>a.refs.filter(r=>r.rw.includes('W')).length>1 && new Set(a.refs.filter(r=>r.rw.includes('W')).map(r=>r.block+r.pin)).size>1);
+    if (st.nosym) list=list.filter(a=>!a.sym);
+    if (q) list=list.filter(a=>matchTokens((a.addr+' '+a.sym+' '+a.refs.map(r=>r.block+'.'+r.pin+' '+r.comment).join(' ')).toLowerCase(), q));
+    list.sort((x,y)=>{ const a=addrKey(x.addr), b=addrKey(y.addr); return natCmp(a[0],b[0])||a[1]-b[1]||a[2]-b[2]||a[3]-b[3]; });
+    $('#aCnt').textContent = list.length+' adres';
+    const lim=list.slice(0,1500);
+    $('#aBody').innerHTML = `<div class="tablewrap"><table class="t"><tr><th>Adresa</th><th>Symbol</th><th>Typ</th><th>R/W</th><th>Chart \\ blok.pin</th><th>Komentář</th><th>Typ bloku</th>${M.hw?'<th>HW kanál</th>':''}</tr>
+      ${lim.map(a=>a.refs.map((r,i)=>{ const b=M.blocks.get(r.block); const multiW = a.refs.filter(x=>x.rw.includes('W')).length>1 && r.rw.includes('W');
+        return `<tr>${i===0?`<td rowspan="${a.refs.length}" class="mono nw"><b>${esc(a.addr)}</b></td><td rowspan="${a.refs.length}">${esc(a.sym)}</td><td rowspan="${a.refs.length}">${esc(a.dt)}</td>`:''}
+        <td>${multiW?`<span class="pill err">${esc(r.rw)}</span>`:esc(r.rw)}</td><td><span class="muted">${esc(b&&b.chart?chartShort(b.chart)+'\\':'')}</span>${bl(r.block)}<span class="mono">.${esc(r.pin)}</span></td><td class="muted">${esc(r.comment)}</td><td>${esc(b?b.type:'')}</td>${M.hw&&i===0?`<td rowspan="${a.refs.length}">${hwAddrCell(a.addr)}</td>`:''}</tr>`; }).join('')).join('')}</table></div>
+      ${list.length>1500?'<div class="muted" style="padding:8px">Zobrazeno prvních 1500 – zužte filtr.</div>':''}`;
+  };
+  let tm; $('#aq').oninput=e=>{ clearTimeout(tm); tm=setTimeout(()=>{ st.q=e.target.value; NAV.q=st.q; NAV.opt=st; draw(); },180); };
+  $('#aArea').onchange=e=>{ st.area=e.target.value; NAV.opt=st; draw(); };
+  $('#aMulti').onchange=e=>{ st.multi=e.target.checked; NAV.opt=st; draw(); };
+  $('#aNoSym').onchange=e=>{ st.nosym=e.target.checked; NAV.opt=st; draw(); };
+  draw();
+}
+
+/* ================= Run sequence ================= */
+function viewRun(v){
+  if (!M) return;
+  if (!M.files.rs){ v.innerHTML=needFiles(['rs'],'pořadí běhu'); return; }
+  const obs=[...M.obs.values()].sort((a,b)=>natCmp(a.ob,b.ob));
+  const ob = NAV.id || (obs.find(o=>o.ob==='OB35')||obs.find(o=>o.count>0)||obs[0]).ob;
+  const q0 = NAV.q||'';
+  v.innerHTML = `<div class="fullv"><div class="toolbar"><select id="rOb">${obs.map(o=>`<option value="${esc(o.ob)}" ${o.ob===ob?'selected':''}>${esc(o.ob)} – ${esc(o.name)} (${o.count})</option>`).join('')}</select>
+    <input type="search" id="rq" placeholder="filtr: skupina, chart, blok, typ" value="${esc(q0)}" style="width:300px"><span class="flex1"></span><span class="muted" id="rCnt"></span></div><div class="pad" style="padding-top:8px" id="rBody"></div></div>`;
+  const draw=()=>{
+    const q=$('#rq').value.trim().toLowerCase();
+    let list=M.run.filter(r=>r.ob===ob);
+    if (q) list=list.filter(r=>{ const b=M.blocks.get(r.block); return matchTokens((r.group+' '+r.block+' '+(b?b.type+' '+b.comment:'')).toLowerCase(), q); });
+    $('#rCnt').textContent=list.length+' bloků';
+    let last=null;
+    $('#rBody').innerHTML=`<div class="tablewrap"><table class="t"><tr><th>#</th><th>Runtime skupina</th><th>Redukce</th><th>Chart \\ blok</th><th>Typ</th><th>Komentář</th></tr>${list.slice(0,3000).map(r=>{ const b=M.blocks.get(r.block); const g=r.group!==last; last=r.group;
+      return `<tr><td class="muted">${r.n}</td><td>${g?`<b>${esc(r.group)}</b>`:''}</td><td class="muted nw">${g?esc(r.ratio):''}</td><td><span class="muted">${esc(b&&b.chart?chartShort(b.chart)+'\\':'')}</span>${bl(r.block)}</td><td>${esc(b?b.type:'')}</td><td class="muted">${esc(b?b.comment:'')}</td></tr>`; }).join('')}</table></div>${list.length>3000?'<div class="muted">… zobrazeno 3000</div>':''}`;
+  };
+  $('#rOb').onchange=e=>go({view:'run', id:e.target.value});
+  let tm; $('#rq').oninput=()=>{ clearTimeout(tm); tm=setTimeout(()=>{ NAV.q=$('#rq').value; draw(); },180); };
+  draw();
+}
+
+/* ================= Search ================= */
+function viewSearch(v){
+  if (!M) return;
+  const q=(NAV.q||'').trim();
+  if (!q){ v.innerHTML='<div class="empty">Zadejte hledaný výraz nahoře.<br><br>Více slov = všechna musí sedět (např. <span class="mono">linka1 motl</span>).<br>Prefixy: <span class="mono">t:MotL</span> (typ bloku), <span class="mono">p:FbkRun</span> (pin), <span class="mono">a:I12</span> (adresa).</div>'; return; }
+  let toks=q.toLowerCase().split(/\s+/).filter(Boolean);
+  const tType=toks.filter(t=>t.startsWith('t:')).map(t=>t.slice(2)); const tPin=toks.filter(t=>t.startsWith('p:')).map(t=>t.slice(2)); const tAddr=toks.filter(t=>t.startsWith('a:')).map(t=>t.slice(2));
+  toks=toks.filter(t=>!/^[tpa]:/.test(t));
+  const blocks=[], charts=[], addrs=[], pins=[];
+  if (!tAddr.length){
+    for (const b of M.blocks.values()){
+      if (tType.length && !tType.every(t=>b.type.toLowerCase().includes(t))) continue;
+      if (tPin.length){ for (const p of b.pins.values()) if (tPin.every(t=>p.name.toLowerCase().includes(t)) && matchTokens((b.id+' '+b.type).toLowerCase(), toks.join(' '))) pins.push([b,p]); continue; }
+      if (matchTokens((b.id+' '+b.type+' '+b.comment+' '+b.fb).toLowerCase(), toks.join(' '))) blocks.push(b);
+    }
+    if (!tType.length && !tPin.length) for (const c of M.charts.values()) if (matchTokens(c.path.toLowerCase(), toks.join(' '))) charts.push(c);
+  }
+  if (!tType.length && !tPin.length) for (const a of M.addrs.values()){ const hay=(a.addr+' '+a.sym).toLowerCase(); if ((tAddr.every(t=>a.addr.toLowerCase().startsWith(t))) && matchTokens(hay, toks.join(' '))) addrs.push(a); }
+  blocks.sort((a,b)=>natCmp(a.id,b.id)); charts.sort((a,b)=>natCmp(a.path,b.path));
+  const sec=(t,n,body)=> n ? `<h3 style="margin:14px 0 6px">${t} <span class="muted">(${n})</span></h3>${body}` : '';
+  v.innerHTML = `<div class="pad"><div class="muted">Hledání: <b>${esc(q)}</b></div>
+    ${sec('Charty', charts.length, `<div class="tablewrap"><table class="t">${charts.slice(0,200).map(c=>`<tr><td>${c.isSfc?GI.sfc:GI.cfc} ${cl(c.path)}</td><td class="muted">${esc(c.folder)}</td><td>${c.blocks.size} bloků</td></tr>`).join('')}</table></div>`)}
+    ${sec('Bloky', blocks.length, `<div class="tablewrap"><table class="t"><tr><th>Blok</th><th>Typ</th><th>Chart</th><th>Komentář</th></tr>${blocks.slice(0,800).map(b=>`<tr><td>${GI.blk(catOf(b))} ${bl(b.id)}</td><td>${esc(b.type)}</td><td>${b.chart?cl(b.chart):''}</td><td class="muted">${esc(b.comment)}</td></tr>`).join('')}</table></div>${blocks.length>800?'<div class="muted">… prvních 800</div>':''}`)}
+    ${sec('Piny', pins.length, `<div class="tablewrap"><table class="t"><tr><th>Blok.pin</th><th>Typ</th><th>Napojení</th></tr>${pins.slice(0,800).map(([b,p])=>`<tr><td>${pinRef(b.id,p.name)}</td><td>${esc(b.type)}</td><td>${p.edges.map(e=> e.a===b.id ? '→ '+pinRef(e.b,e.bp,b.chart) : '← '+pinRef(e.a,e.ap,b.chart)).join('<br>')} ${p.addrs.map(a=>al(a.addr)).join(' ')}${pinUsed(p)?'':'<span class="pill err">nenapojeno</span>'}</td></tr>`).join('')}</table></div>`)}
+    ${sec('Adresy', addrs.length, `<div class="tablewrap"><table class="t">${addrs.slice(0,300).map(a=>`<tr><td>${al(a.addr)}</td><td>${esc(a.sym)}</td><td>${a.refs.map(r=>pinRef(r.block,r.pin)+' '+esc(r.rw)).join('<br>')}</td></tr>`).join('')}</table></div>`)}
+    ${!(blocks.length+charts.length+addrs.length+pins.length)?'<div class="empty">Nic nenalezeno.</div>':''}</div>`;
+}
+
+/* ================= wiring ================= */
+function init(){
+  $('#fileInput').onchange=e=>{ loadFiles([...e.target.files]); e.target.value=''; };
+  const mask=$('#dragmask'); let dc=0;
+  window.addEventListener('dragenter',e=>{ if([...e.dataTransfer.types].includes('Files')){ dc++; mask.classList.add('on'); } });
+  window.addEventListener('dragleave',()=>{ dc=Math.max(0,dc-1); if(!dc) mask.classList.remove('on'); });
+  window.addEventListener('dragover',e=>e.preventDefault());
+  window.addEventListener('drop',e=>{ e.preventDefault(); dc=0; mask.classList.remove('on'); if (e.dataTransfer.files.length) loadFiles([...e.dataTransfer.files]); });
+  $('#back').onclick=goBack; $('#fwd').onclick=goFwd;
+  window.addEventListener('keydown',e=>{ if(e.altKey&&e.key==='ArrowLeft') goBack(); if(e.altKey&&e.key==='ArrowRight') goFwd(); if(e.key==='/' && document.activeElement.tagName!=='INPUT'){ e.preventDefault(); $('#gsearch').focus(); } });
+  $('#gsearch').addEventListener('keydown',e=>{ if(e.key==='Enter' && M) go({view:'search', q:e.target.value}); });
+  let sft; $('#sfilter').oninput=e=>{ clearTimeout(sft); sft=setTimeout(()=>{ SIDE.filter=e.target.value; renderSide(); },200); };
+  $('#theme').onclick=()=>{ const r=document.documentElement; const cur=r.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'); r.dataset.theme = cur==='dark'?'light':'dark'; try{localStorage.setItem('pcs7x-theme', r.dataset.theme);}catch(e){} renderView(); };
+  try{ const t=localStorage.getItem('pcs7x-theme'); if(t) document.documentElement.dataset.theme=t; }catch(e){}
+  // sidebar resize
+  const sp=$('#split'); sp.onmousedown=e=>{ e.preventDefault(); const mv=ev=>{ document.body.style.setProperty('--sbw', Math.max(200,Math.min(700,ev.clientX))+'px'); $('#body').style.setProperty('--sbw', Math.max(200,Math.min(700,ev.clientX))+'px'); }; const up=()=>{ window.removeEventListener('mousemove',mv); window.removeEventListener('mouseup',up); }; window.addEventListener('mousemove',mv); window.addEventListener('mouseup',up); };
+  document.addEventListener('click',e=>{
+    const tab=e.target.closest('[data-tab]'); if (tab){ const k=tab.dataset.tab; go(LAST[k] && k!=='files' ? LAST[k] : {view:k}); return; }
+    const st=e.target.closest('[data-stab]'); if (st){ SIDE.tab=st.dataset.stab; renderSide(); return; }
+    const tog=e.target.closest('[data-tog]');
+    if (tog && (tog.classList.contains('tw') || !tog.dataset.tn)){ const k=tog.dataset.tog; SIDE.open.has(k)?SIDE.open.delete(k):SIDE.open.add(k); renderSide(); return; }
+    const tn=e.target.closest('.tn[data-tn]');
+    if (tn){ const id=tn.dataset.id, t=tn.dataset.tn;
+      if (t==='folder') go({view:'chart', id, folder:true});
+      else if (t==='chart'){ if (M.blocks.get(id)?.kind==='sfc' && M.charts.get(id)?.blocks.size===0) go({view:'sfc', id, inst:true}); else go({view:'chart', id}); }
+      else if (t==='block') go({view:'block', id});
+      else if (t==='sfctype') go({view:'sfc', id});
+      else if (t==='sfci') go({view:'sfc', id, inst:true});
+      else if (t==='ob') go({view:'run', id});
+      else if (t==='hw') go({view:'hw', id});
+      return; }
+    const g=e.target.closest('[data-go]');
+    if (g){ e.preventDefault(); const id=g.dataset.id, t=g.dataset.go;
+      if (t==='block') go({view:'block', id});
+      else if (t==='chart') go({view:'chart', id, focus:g.dataset.focus});
+      else if (t==='folder') go({view:'chart', id, folder:true});
+      else if (t==='addr') go({view:'addr', q:id, opt:null});
+      else if (t==='neigh') go({view:'neigh', id});
+      else if (t==='hw') go({view:'hw', id});
+      else if (t==='sfctype') go({view:'sfc', id});
+      else if (t==='sfci') go({view:'sfc', id, inst:true});
+    }
+  });
+  renderChips(); renderSide(); go({view:'files'});
+}
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body></html>
